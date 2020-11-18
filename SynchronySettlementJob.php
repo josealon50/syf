@@ -123,6 +123,7 @@
                 }	
             }
             else{
+                fwrite( $mainReport, "Settlement File Encryption Status: Unsuccesful\n");
                 exit();
             }
             updateASFMRecords( $asfm, $recordsToUpdate );
@@ -136,6 +137,7 @@
         else if ( $argv[1] == 4 ){
             fwrite( $mainReport, "Settlement ran in mode: 4\n");
             fclose ( $mainReport );
+            fclose( $settlement );
 
             //We might need to delete settlement file
             updateASFMRecords( $asfm, $recordsToUpdate );
