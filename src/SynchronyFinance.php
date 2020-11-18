@@ -266,7 +266,6 @@
             $transactionType = $row['ORD_TP_CD'] == 'SAL' ? 'S' : 'R'; 
 
             $acctNum = $this->getSynchronyAccountNumber( $db, $row['CUST_CD'], 'SYF', $row['ACCT_CD'] ); 
-
             $soAsp = new SoAsp( $db );
             $soAsp = $soAsp->getPromoCode( $row['DEL_DOC_NUM'] );
 
@@ -342,6 +341,7 @@
 	     */
 		public function writeTicketToSettleFile( $db, $row, $settle, $counter ){
             global $appconfig;
+
             $record = $this->processRecord( $db, $row, $counter );
             $addenda = $this->processAddendaFoEachRecordRecord( $row );
 
@@ -437,11 +437,9 @@
                 return false;
             }
 
-var_dump( $sftp->nlist() );
             $sftp->chdir($appconfig['synchrony']['SFTP_INBOUND_FOLDER']);
             $sftp->put($appconfig['synchrony']['SYF_SETTLE_FILENAME'], $appconfig['synchrony']['REPORT_SYF_SETTLE_OUT_DIR'] . $appconfig['synchrony']['SYF_SETTLE_FILENAME'], NET_SFTP_LOCAL_FILE);
 
-var_dump( $sftp->nlist() );
             return true;
         }
         //---------------------------------------------------------------------------
@@ -455,8 +453,9 @@ var_dump( $sftp->nlist() );
          *        $totalReturns - Running counter of total returns 
          * @return 
          */
-        public function validateRecords( $db, $asfm, $settle, &$totalSales, &$totalReturns, &$exceptions, &$simpleRet, &$exchanges, &$validData, &$delDocWrittens, $settlement, &$transactionsPerStore){
+        public function validateRecords( $db, $asfm, $settle, &$totalSales, &$totalReturns, &$exceptions, &$simpleRet, &$exchanges, &$validData, &$delDocWrittens, $settlement, &$transactionsPerStore ){
             global $appconfig;
+            $update = [];
 
             //Main Driving loop 
             while( $row = $settle->next() ){
@@ -476,22 +475,10 @@ var_dump( $sftp->nlist() );
                     if ( strcmp($row['AS_TRN_TP'], 'RET') === 0 ){
                         $totalReturns += $row['AMT'];
                     }
+                    
+                    //Update ASFM Record
+                    array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "P"));
 
-                    //Update ticket status code to 'P'
-                    $asfm->set_STAT_CD('P');
-
-                    $where = "WHERE DEL_DOC_NUM = '" . $row['DEL_DOC_NUM'] . "' "
-                            ."AND CUST_CD = '" . $row['CUST_CD'] . "' "
-                            ."AND STORE_CD = '" . $row['STORE_CD'] . "' "
-                            ."AND AS_CD = '" . $row['AS_CD'] . "' "
-                            ."AND AS_TRN_TP = '" . $row['AS_TRN_TP'] . "' "
-                            ."AND ROWID = '" . $row['IDROW'] . "' ";
-
-                    $result = $asfm->update($where, false);
-
-                    if ( $result == false ){
-                        echo $asfm->getError(); 
-                    }
                     //Write to upload files
                     $ticket = $this->writeTicketToSettleFile($db, $row, $settlement, $validData );
 
@@ -536,21 +523,9 @@ var_dump( $sftp->nlist() );
 
                             }
                             $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
-                            
-                            //Update ticket to status code to 'E'
-                            $asfm->set_STAT_CD('E');
 
-                            $where = "WHERE DEL_DOC_NUM = '" . $row['DEL_DOC_NUM'] . "' "
-                                    ."AND CUST_CD = '" . $row['CUST_CD'] . "' "
-                                    ."AND STORE_CD = '" . $row['STORE_CD'] . "' "
-                                    ."AND AS_CD = '" . $row['AS_CD'] . "' "
-                                    ."AND AS_TRN_TP = '" . $row['AS_TRN_TP'] . "' "
-                                    ."AND ROWID = '" . $row['IDROW'] . "' ";
+                            array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E"));
 
-                            $result = $asfm->update($where, false);           
-                            if ( $result == false ){
-                                echo $asfm->getError();
-                            }
                             continue;
                         }
                         else{
@@ -576,60 +551,33 @@ var_dump( $sftp->nlist() );
                         }
                     }                
                     if ( array_key_exists( 'SPL', $valid )){
-                            //Check if return ticket have a sale side attatch to it
-                            if ( array_search( substr($row['DEL_DOC_NUM'], 0, 11), $delDocWrittens ) !== FALSE ) {
-                                continue;
+                        //Check if return ticket have a sale side attatch to it
+                        if ( array_search( substr($row['DEL_DOC_NUM'], 0, 11), $delDocWrittens ) !== FALSE ) {
+                            continue;
+                        }
+                        else{ 
+                            $str = $this->getCreditSide( $db, $row );
+
+                            $exchanges .= $str;
+                            $exchanges .=  $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
+                            array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
+
+                            if ( count($valid) > 1 ){
+                                $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
+
+                                array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E"));
                             }
-                            else{ 
-                                $str = $this->getCreditSide( $db, $row );
-
-                                $exchanges .= $str;
-                                $exchanges .=  $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                                array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                                if ( count($valid) > 1 ){
-                                    $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
-
-                                    $asfm->set_STAT_CD('E');
-
-                                    $where = "WHERE DEL_DOC_NUM = '" . $row['DEL_DOC_NUM'] . "' "
-                                            ."AND CUST_CD = '" . $row['CUST_CD'] . "' "
-                                            ."AND STORE_CD = '" . $row['STORE_CD'] . "' "
-                                            ."AND AS_CD = '" . $row['AS_CD'] . "' "
-                                            ."AND AS_TRN_TP = '" . $row['AS_TRN_TP'] . "' "
-                                            ."AND ROWID = '" . $row['IDROW'] . "' ";
-
-                                    $result = $asfm->update($where, false);
-
-                                    if ( $result == false ){
-                                        echo "Update to E error: " . $asfm->getError() . "\n";
-                                    }
-                                }
-
-
-                            }
-
-                            continue;   
+                        }
+                        continue;   
                     }
 
                     $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
 
-                    //Update ticket status code to 'E'
-                    $asfm->set_STAT_CD('E');
-                    $where = "WHERE DEL_DOC_NUM = '" . $row['DEL_DOC_NUM'] . "' "
-                            ."AND CUST_CD = '" . $row['CUST_CD'] . "' "
-                            ."AND STORE_CD = '" . $row['STORE_CD'] . "' "
-                            ."AND AS_CD = '" . $row['AS_CD'] . "' "
-                            ."AND AS_TRN_TP = '" . $row['AS_TRN_TP'] . "' "
-                            ."AND ROWID = '" . $row['IDROW'] . "' ";
-                    $result = $asfm->update($where, false);
-
-                    if ( $result == false ){
-                        echo "Update to E error: " . $asfm->getError() . "\n";
-                    }
+                    array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E"));
                 }
                     
             }
+            return $update;
         }
 
     }

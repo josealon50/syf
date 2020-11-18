@@ -1,6 +1,7 @@
 <?php
     require_once( './config.php');
     require_once("/home/public_html/weblibs/iware/php/utils/IAutoLoad.php");
+    //require_once("/var/www/public/weblibs/iware/php/utils/IAutoLoad.php");
     $autoload = new IAutoLoad($classpath);
 
     require_once( './config.php');
@@ -23,7 +24,7 @@
     global $appconfig;
 
     //Only generate settlement or run normal
-    if ( $argv[1] == 1 ||  $argv[2] == 3 ){
+    if ( $argv[1] == 1 ||  $argv[1] == 3 || $argv[1] == 4  ){
         $settlement = fopen( $appconfig['synchrony']['REPORT_SYF_SETTLE_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'], "w+" );
         $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
 
@@ -33,6 +34,7 @@
         $settle = new SettlementInfo($db);
         $syf= new SynchronyFinance( $db );
         $asfm = new ASPStoreForward($db);
+        $recordsToUpdate = [];
 
         fwrite( $mainReport, "Settlement process for SYF\n" );
         fwrite( $mainReport, "Date: "  . date("F j, Y, g:i a") . "\n");
@@ -68,6 +70,7 @@
         }
 
         $rec = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
+        $recordsToUpdate = array_merge( $rec, $recordsToUpdate );
 
         //Get all manual tickets 
         $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD = 'S'";
@@ -80,6 +83,7 @@
             return;
         }
         $rec = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
+        $recordsToUpdate = array_merge( $rec, $recordsToUpdate );
 
         //Call to write bank and batch trailer
         foreach( $transactionsPerStore as $key => $value ){
@@ -94,17 +98,18 @@
         $strMsg = "";
         
         if ( $argv[1] == 1 ){
-            fwrite( $mainReport, "Settlement File was not upload ran in mode: 1\n");
+            fwrite( $mainReport, "Settlement File was not uploaded ran in mode: 1\n");
             fclose( $settlement );
             fclose( $mainReport );
             exit();
         }
-        else{
+        else if ( $argv[1] == 3 ){
             //First encrypt file 
             if ( $syf->encrypt() ){
                 if ( $syf->uploadSettlement() ){
                     $strMsg = "File successfully uploaded.";
                     echo $strMsg."\n";
+                    fwrite( $mainReport, "Settlement ran in mode: 3\n");
                     fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
                 }
                 else{
@@ -120,34 +125,23 @@
             else{
                 exit();
             }
+            updateASFMRecords( $asfm, $recordsToUpdate );
+
+            //Write complete report
+            $report = $syf->createMainReport( $mainReport, $exceptions, $simpleRet, $exchanges, $manuals, $agingRet, $agingExc, $evenExchangesErrors );
+
+            // Send email that the SETTL process has completed
+            //$syf->emailSettleCompleted( $appconfig, "SYF", $appconfig['MAIN_REPORT_DIR'] . $syf->getMainReportName(), $strMsg );        
         }
-        //Check for records that are finalized in SO that are not in ASFM
-        $finalizedSales = new FinalizedSales($db);
+        else if ( $argv[1] == 4 ){
+            fwrite( $mainReport, "Settlement ran in mode: 4\n");
+            fclose ( $mainReport );
 
-        $where =  "WHERE ASP_TRN.DEL_DOC_NUM IS NULL "
-                 ."AND FINAL_DT BETWEEN TO_DATE('" . $beg_final_dt . "', 'DD-MON-YY') AND TO_DATE('" . $end_final_dt . "', 'DD-MON-YY') "
-                 ."AND SO.STAT_CD = 'F' "
-                 ."AND SO.FIN_CUST_CD = 'SYF' "
-                 ."AND AS_CD = 'SYF'";
-
-        $result = $finalizedSales->query($where);
-
-        if ( $result < 0 ){
-            echo "Error finalizedSales: " . $finalizedSales->getError();
+            //We might need to delete settlement file
+            updateASFMRecords( $asfm, $recordsToUpdate );
         }
-
-        while( $finalizedSales->next() ){
-            echo "Del Doc Num in ASFM: " . $finalizedSales->get_DEL_DOC_NUM() . "\n";
-        }
-
-        //Write complete report
-        $report = $syf->createMainReport( $mainReport, $exceptions, $simpleRet, $exchanges, $manuals, $agingRet, $agingExc, $evenExchangesErrors );
-
-        //$syf->closeReportFiles();
-
-        // Send email that the SETTL process has completed
-        $syf->emailSettleCompleted( $appconfig, "SYF", $appconfig['MAIN_REPORT_DIR'] . $syf->getMainReportName(), $strMsg );        
     }
+    //Ran in mode 2
     else{
         $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
         $db = sessionConnect();
@@ -169,7 +163,6 @@
             }	
         }
         else{
-            fwrite( $mainReport, "Settlement File: Encryption Failed \n");
             exit();
         }
     
@@ -191,5 +184,24 @@
 
         return $db;
 
+    }
+
+    function updateASFMRecords( $asfm, $updt ){
+        foreach ( $updt as $key => $row ){
+            $asfm->set_STAT_CD($row['STAT_CD']);
+
+            $where = "WHERE DEL_DOC_NUM = '" . $row['DEL_DOC_NUM'] . "' "
+                    ."AND CUST_CD = '" . $row['CUST_CD'] . "' "
+                    ."AND STORE_CD = '" . $row['STORE_CD'] . "' "
+                    ."AND AS_CD = '" . $row['AS_CD'] . "' "
+                    ."AND AS_TRN_TP = '" . $row['AS_TRN_TP'] . "' "
+                    ."AND ROWID = '" . $row['IDROW'] . "' ";
+
+            $result = $asfm->update($where, false);
+
+            if ( $result == false ){
+                echo $asfm->getError(); 
+            }
+        }
     }
 ?>

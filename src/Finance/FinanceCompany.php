@@ -346,39 +346,39 @@
 	     */
 		function createMainReport( $ptr, $exceptions, $simpleRet, $exchanges, $manuals, $agingRet, $agingExc, $evenExchangesErrors ){
             //Write Manual Tickets 
-			fwrite( $mainReportPtr, "MANUALS\n");
-			fwrite( $mainReportPtr, $this->headerRet);
-			fwrite( $mainReportPtr, $manuals);
-			fwrite( $mainReportPtr, "\n\n\n\n");
+			fwrite( $ptr, "MANUALS\n");
+			fwrite( $ptr, $this->headerRet);
+			fwrite( $ptr, $manuals);
+			fwrite( $ptr, "\n\n\n\n");
             
             //Write Aging Return transactions
-			fwrite( $mainReportPtr, "AGING TRAN\n");
-			fwrite( $mainReportPtr, $this->headerRet);
-			fwrite( $mainReportPtr, $agingRet);
-			fwrite( $mainReportPtr, "\n\n\n\n");
+			fwrite( $ptr, "AGING TRAN\n");
+			fwrite( $ptr, $this->headerRet);
+			fwrite( $ptr, $agingRet);
+			fwrite( $ptr, "\n\n\n\n");
 
             //Write exception header
-			fwrite( $mainReportPtr, "EXCEPTIONS\n");
-			fwrite( $mainReportPtr, $this->headerExc);
-			fwrite( $mainReportPtr, $exceptions);
-            fwrite( $mainReportPtr, "\n\n");
-            fwrite( $mainReportPtr, $agingExc );
-			fwrite( $mainReportPtr, "\n\n\n\n");
+			fwrite( $ptr, "EXCEPTIONS\n");
+			fwrite( $ptr, $this->headerExc);
+			fwrite( $ptr, $exceptions);
+            fwrite( $ptr, "\n\n");
+            fwrite( $ptr, $agingExc );
+			fwrite( $ptr, "\n\n\n\n");
 
 
 			//Write Exchange header
-			fwrite( $mainReportPtr, "SIMPLE RETURNS\n");
-			fwrite( $mainReportPtr, $this->headerRet);
-			fwrite( $mainReportPtr, $simpleRet);
-			fwrite( $mainReportPtr, "\n\n\n\n");
+			fwrite( $ptr, "SIMPLE RETURNS\n");
+			fwrite( $ptr, $this->headerRet);
+			fwrite( $ptr, $simpleRet);
+			fwrite( $ptr, "\n\n\n\n");
 
 
 			//Write simple return header
-			fwrite( $mainReportPtr, "EXCHANGES\n");
-			fwrite( $mainReportPtr, $this->headerRet);
-			fwrite( $mainReportPtr, $exchanges);
-            fwrite( $mainReportPtr, "\n\n");
-			fwrite( $mainReportPtr, $evenExchangesErrors);
+			fwrite( $ptr, "EXCHANGES\n");
+			fwrite( $ptr, $this->headerRet);
+			fwrite( $ptr, $exchanges);
+            fwrite( $ptr, "\n\n");
+			fwrite( $ptr, $evenExchangesErrors);
 			
 		}
 		//---------------------------------------------------------------------------
