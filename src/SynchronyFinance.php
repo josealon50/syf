@@ -138,7 +138,7 @@
             $zeroes = "0";
             $filler = " ";
 
-            $negative = $totalDollarAmount < 0 ? '-' : '+';
+            $negative = $totalDollarAmount < 0 ? '-' : '';
             if ( is_float($totalDollarAmount) ){
                 $totalDollarAmount = str_replace( '.', '', $totalDollarAmount );
             }
@@ -190,7 +190,7 @@
             $zeroes = "0";
             $filler = " ";
 
-            $negative = $totalDollarAmount < 0 ? '-' : '+';
+            $negative = $totalDollarAmount < 0 ? '-' : '';
             if ( is_float($totalDollarAmount) ){
                 $totalDollarAmount = str_replace( '.', '', $totalDollarAmount );
             }
