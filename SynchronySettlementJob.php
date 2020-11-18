@@ -25,8 +25,10 @@
 
     //Only generate settlement or run normal
     if ( $argv[1] == 1 ||  $argv[1] == 3 || $argv[1] == 4  ){
-        $settlement = fopen( $appconfig['synchrony']['REPORT_SYF_SETTLE_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'], "w+" );
-        $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
+        if( $argv[1] !== 4 ){
+            $settlement = fopen( $appconfig['synchrony']['REPORT_SYF_SETTLE_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'], "w+" );
+            $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
+        }
 
         $transactionsPerStore = [];
 
@@ -36,9 +38,11 @@
         $asfm = new ASPStoreForward($db);
         $recordsToUpdate = [];
 
-        fwrite( $mainReport, "Settlement process for SYF\n" );
-        fwrite( $mainReport, "Date: "  . date("F j, Y, g:i a") . "\n");
-        fwrite( $mainReport, "Settlement File name: " . $syf->getFilenameNoExt() . "\n" );
+        if ($argv[1] !== 4 ){
+            fwrite( $mainReport, "Settlement process for SYF\n" );
+            fwrite( $mainReport, "Date: "  . date("F j, Y, g:i a") . "\n");
+            fwrite( $mainReport, "Settlement File name: " . $syf->getFilenameNoExt() . "\n" );
+        }
 
 
         //Get all the manual tickets
@@ -85,14 +89,16 @@
         $rec = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
         $recordsToUpdate = array_merge( $rec, $recordsToUpdate );
 
-        //Call to write bank and batch trailer
-        foreach( $transactionsPerStore as $key => $value ){
-            //Writing to settlement file bank and batch header
-            fwrite($settlement, $syf->getBankHeader());
-            fwrite($settlement, $syf->getBatchHeader($db, $key));
-            fwrite($settlement, $value['records']);
-            fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
-            fwrite($settlement, $syf->getBankTrailer( $value['total_records'], $value['amount'] ));
+        if ($argv[1] !== 4 ){
+            //Call to write bank and batch trailer
+            foreach( $transactionsPerStore as $key => $value ){
+                //Writing to settlement file bank and batch header
+                fwrite($settlement, $syf->getBankHeader());
+                fwrite($settlement, $syf->getBatchHeader($db, $key));
+                fwrite($settlement, $value['records']);
+                fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
+                fwrite($settlement, $syf->getBankTrailer( $value['total_records'], $value['amount'] ));
+            }
         }
 
         $strMsg = "";
@@ -135,11 +141,6 @@
             //$syf->emailSettleCompleted( $appconfig, "SYF", $appconfig['MAIN_REPORT_DIR'] . $syf->getMainReportName(), $strMsg );        
         }
         else if ( $argv[1] == 4 ){
-            fwrite( $mainReport, "Settlement ran in mode: 4\n");
-            fclose ( $mainReport );
-            fclose( $settlement );
-
-            //We might need to delete settlement file
             updateASFMRecords( $asfm, $recordsToUpdate );
         }
     }
