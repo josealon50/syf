@@ -266,8 +266,8 @@
             $transactionType = $row['ORD_TP_CD'] == 'SAL' ? 'S' : 'R'; 
 
             $acctNum = $this->getSynchronyAccountNumber( $db, $row['CUST_CD'], 'SYF', $row['ACCT_CD'] ); 
-            $soAsp = new SoAsp( $db );
-            $soAsp = $soAsp->getPromoCode( $row['DEL_DOC_NUM'] );
+            //$soAsp = new SoAsp( $db );
+            //$soAsp = $soAsp->getPromoCode( $row['DEL_DOC_NUM'] );
 
             $ticket =    $appconfig['synchrony']['DETAIL_RECORD_TYPE_CODE']         //Record Type Code
                         .$acctNum                                       //Account Number
@@ -276,7 +276,7 @@
                         .$transactionType                               //Transaction Type
                         .'00'                                           //In store payment
                         .str_pad( $recordId, 6, $zeroes, STR_PAD_LEFT )                   //Merchant Transaction Indetifier
-                        .str_pad( $soAsp->get_AS_PROMO_CD(), 4, $zeroes, STR_PAD_LEFT )  //Ticket Terms
+                        .str_pad( $row['SO_ASP_PROMO_CD'], 4, $zeroes, STR_PAD_LEFT )  //Ticket Terms
                         .str_pad($filler, 16)                           //Department Codes
                         .str_pad($filler, 20)                           //Filler    
                         .'1'                                            //Addenda

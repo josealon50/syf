@@ -15,6 +15,7 @@
     require_once( './db/SoAsp.php' );
     require_once( './src/Finance/FinanceCompany.php');
     require_once( './src/SynchronyFinance.php');
+    require_once( './src/ErrorMessages.php');
     //require_once("../../public/libs".DIRECTORY_SEPARATOR."iware".DIRECTORY_SEPARATOR."php".DIRECTORY_SEPARATOR."utils".DIRECTORY_SEPARATOR."IAutoLoad.php");
 
     set_include_path(get_include_path() . PATH_SEPARATOR . 'libs/phpseclib');
@@ -145,7 +146,7 @@
         }
     }
     //Ran in mode 2
-    else{
+    else if ( $argv[1] == 2 ){
         $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
         $db = sessionConnect();
         $syf= new SynchronyFinance( $db );
@@ -169,6 +170,10 @@
             exit();
         }
     
+    }
+    else{
+        echo "Mode Unsupported\n";
+        exit();
     }
 
     function sessionConnect() {
