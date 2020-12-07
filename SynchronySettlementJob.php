@@ -111,6 +111,18 @@
             exit();
         }
         else if ( $argv[1] == 3 ){
+                //Archive older sttlement file and timestamp it 
+            if( !copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'] . date("YmdHis") )){
+                fwrite( $mainReport, "Settlement File Decrypted was not archived\n");
+
+            }
+
+                //Archive older encrypted file and timestamp it 
+            if( !copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'] . date("YmdHis") )){
+                fwrite( $mainReport, "Settlement File Encrypted was not archived\n");
+
+            }
+
             //First encrypt file 
             if ( $syf->encrypt() ){
                 if ( $syf->uploadSettlement() ){
@@ -150,6 +162,14 @@
         $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
         $db = sessionConnect();
         $syf= new SynchronyFinance( $db );
+
+        if( !copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'] . date("YmdHis") )){
+            fwrite( $mainReport, "Settlement File Decrypted was not archived\n");
+        }
+        //Archive older encrypted file and timestamp it 
+        if( !copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'] . date("YmdHis") )){
+            fwrite( $mainReport, "Settlement File Encrypted was not archived\n");
+        }
 
         //First encrypt file 
         if ( $syf->encrypt() ){
