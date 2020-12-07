@@ -29,7 +29,7 @@ class MorStoreToAspMerchant extends IDBTable {
     }
 
     public function getStoreMerchantNumber( $storeCD, $asCD ) {
-        global $appconfig, $app, $errmsg, $logger;
+        global $appconfig;
 
         $where = "WHERE STORE_CD = '" . $storeCD . "' AND AS_CD = '" . $asCD . "' ";
             
@@ -49,11 +49,34 @@ class MorStoreToAspMerchant extends IDBTable {
         if($row = $this->next()){
             return $this;
         } 
+        return NULL;
+    }
 
+    public function getStoreCDByMerchantNumber( $merchantNum, $asCD ){
+        global $appconfig;
+
+        $where = "WHERE MERCHANT_NUM = '" . $merchantNum . "' AND AS_CD = '" . $asCD . "' ";
+            
+        $result = $this->query( $where, '' );
+
+        if($result < 0){
+            $errmsg = 'Unable to update DEL_RETURNS: ' . $where;
+
+            $return['error'] = true;
+            $return['update'] = false;
+            $return['msg']   = $errmsg;
+                
+            return NULL; 
+
+        }
+
+        if($row = $this->next()){
+            return $this;
+        } 
         return NULL;
 
-
     }
+
         
 
 }

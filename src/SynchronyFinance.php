@@ -361,7 +361,21 @@
 		public function download(){
             global $appconfig;
 
-            return "syf_recon.txt";
+            $sftp = new Net_SFTP($appconfig['synchrony']['SFTP_HOST'], $appconfig['synchrony']['SFTP_PORT']);
+            $privateKey = new Crypt_RSA();
+
+            $privateKey->loadKey(file_get_contents($appconfig['synchrony']['SFTP_SSH_KEY']));
+            // login via sftp
+            if (!$sftp->login($appconfig['synchrony']['SFTP_USER'], $privateKey)) {
+                //Send email to mis
+                return false;
+            }
+
+            $sftp->chdir($appconfig['synchrony']['SFTP_OUTBOUND_FOLDER']);
+            $sftp->get( $appconfig['synchrony']['SYF_RECON_PATH'] . $appconfig['synchrony']['SFTP_RECON_FILENAME'], $appconfig['synchrony']['SYF_RECON_PATH'] . $appconfig['synchrony']['SFT_RECON_FILENAME'] );
+
+            return true;
+
         }
 
         public function getFilenameNoExt(){
