@@ -35,6 +35,7 @@
 												,	"ORIG_HOST_REF_NUM"			=>	"ORIG_HOST_REF_NUM"
 												,	"MANUAL"					=>	"MANUAL"
                                                 ,	"CREATE_DT_TIME"			=>	"CREATE_DT_TIME"
+                                                ,	"CUST_ASP_ACCT_NUM"			=>	"ACCT_NUM"
                                                 ,   "IDROW"                     =>  "IDROW"
 
 											);

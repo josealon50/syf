@@ -111,40 +111,20 @@
             exit();
         }
         else if ( $argv[1] == 3 ){
-                //Archive older sttlement file and timestamp it 
-            if( !copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'] . date("YmdHis") )){
-                fwrite( $mainReport, "Settlement File Decrypted was not archived\n");
-
+            if( !$syf->archive() ){
+                fwrite( $mainReport, "Settlement: Archiving Failed\n");
             }
-
-                //Archive older encrypted file and timestamp it 
-            if( !copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'] . date("YmdHis") )){
-                fwrite( $mainReport, "Settlement File Encrypted was not archived\n");
-
-            }
-
-            //First encrypt file 
-            if ( $syf->encrypt() ){
-                if ( $syf->uploadSettlement() ){
-                    $strMsg = "File successfully uploaded.";
-                    echo $strMsg."\n";
-                    fwrite( $mainReport, "Settlement ran in mode: 3\n");
-                    fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
-                }
-                else{
-                    $strMsg = "Upload File: " . $syf->getFilename() . "  To SYF failed. Please contact MIS immediately.";
-                    echo $strMsg."\n";
-
-                    fwrite( $mainReport, "Settlement File Upload Status: Unsuccesful\n");
-                    fwrite( $mainReport, "Settlement File Upload Error Code: " . $syf->getErrorCodeUpload() . "\n");
-                    fwrite( $mainReport, "Settlement File Upload Error Message: " . $syf->getErrorUploadMessage() . "\n");
-                    fwrite( $mainReport, "Please use the SYF upload module to reupload the settlement file\n" );
-                }	
+            if( processOut($syf) ){
+                fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
             }
             else{
-                fwrite( $mainReport, "Settlement File Encryption Status: Unsuccesful\n");
+                fwrite( $mainReport, "Settlement File Upload Status: Unsuccesful\n");
+                fwrite( $mainReport, "Settlement File Upload Error Code: " . $syf->getErrorCodeUpload() . "\n");
+                fwrite( $mainReport, "Settlement File Upload Error Message: " . $syf->getErrorUploadMessage() . "\n");
+                fwrite( $mainReport, "Please use the SYF upload module to reupload the settlement file\n" );
                 exit();
             }
+
             updateASFMRecords( $asfm, $recordsToUpdate );
 
             //Write complete report
@@ -163,28 +143,19 @@
         $db = sessionConnect();
         $syf= new SynchronyFinance( $db );
 
-        if( !copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'] . date("YmdHis") )){
+        if( !$syf->archive() ){
             fwrite( $mainReport, "Settlement File Decrypted was not archived\n");
         }
-        //Archive older encrypted file and timestamp it 
-        if( !copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'] . date("YmdHis") )){
-            fwrite( $mainReport, "Settlement File Encrypted was not archived\n");
+
+        if( processOut($syf) ){
+            fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
         }
+        else{
+            fwrite( $mainReport, "Settlement File Upload Status: Unsuccesful\n");
+            fwrite( $mainReport, "Settlement File Upload Error Code: " . $syf->getErrorCodeUpload() . "\n");
+            fwrite( $mainReport, "Settlement File Upload Error Message: " . $syf->getErrorUploadMessage() . "\n");
+            fwrite( $mainReport, "Please use the SYF upload module to reupload the settlement file\n" );
 
-        //First encrypt file 
-        if ( $syf->encrypt() ){
-            if ( $syf->uploadSettlement() ){
-                $strMsg = "File successfully uploaded.";
-                fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
-            }
-            else{
-                $strMsg = "Upload File: " . $syf->getFilename() . "  To SYF failed. Please contact MIS immediately.";
-
-                fwrite( $mainReport, "Settlement File Upload Status: Unsuccesful\n");
-                fwrite( $mainReport, "Settlement File Upload Error Code: " . $syf->getErrorCodeUpload() . "\n");
-                fwrite( $mainReport, "Settlement File Upload Error Message: " . $syf->getErrorUploadMessage() . "\n");
-                fwrite( $mainReport, "Please use the SYF upload module to reupload the settlement file\n" );
-            }	
         }
         else{
             exit();
@@ -230,6 +201,18 @@
             if ( $result == false ){
                 echo $asfm->getError(); 
             }
+        }
+    }
+
+    function processOut( $syf, $mainReport ){
+        //First encrypt file 
+        if ( $syf->encrypt() ){
+            if ( $syf->uploadSettlement() ){
+                return true;
+            }
+            else{
+                return false;
+            }	
         }
     }
 ?>

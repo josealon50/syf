@@ -1132,12 +1132,10 @@
             }
             return $str;
         }
+        public function validateData( $row ){ 
+        
+        
+        }
     }
-
-
-
-
-
-
 
 ?>

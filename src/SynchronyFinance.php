@@ -580,6 +580,64 @@
             return $update;
         }
 
+		/*------------------------------------------------------------------------
+		 *------------------------------ validateData ----------------------------
+		 *------------------------------------------------------------------------
+	     * Method validates each ticket in ASFM. It till check for common errors 
+	     * between SYF and Genesis. 
+	     *
+	     * @param $db Object: IDBT Resource Connection Object to Oracle.
+	     *		  $row Array: Contains all ticket information.
+	     *
+	     * @return Array: Contains all error messages for that ticket. If array it 
+	     *				  is empty it means that there is no error for that ticket.
+	     *
+	     *
+	     */
+        public function validateData( $row ){ 
+            global $appconfig;
+
+            $errors =[];
+            if( is_null($row['CUST_ASP_ACCT_NUM']) ){
+                array_push( $errors, ErrorMessages::CUST_ASP_NO_ACCT;
+            }
+
+            if( in_array( $row['SO_ASP_PROMO_CD'],  $appconfig['synchrony']['INVALID_PROMO_CODES'] ){
+                array_push( $errors, ErrorMessages::INVALID_PROMO_CODES;
+            }
+
+            
+            return $errors; 
+        
+        }
+
+		/*------------------------------------------------------------------------
+		 *------------------------------ archive ---------------------------------
+		 *------------------------------------------------------------------------
+         * Function will archive most recent settlement file
+	     *
+	     * @param 
+         * @return Boolean: 
+         *          TRUE: No errors.
+         *          FALSE: Error archiving 
+         *
+	     *
+	     */
+        public function archive(){
+            try{
+                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'] . date("YmdHis") ));
+
+                //Archive older encrypted file and timestamp it 
+                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'] . date("YmdHis") );
+
+                return $error; 
+            }
+            catch( Exception $e ){
+                return false;
+            }
+
+        }
+
     }
 
 ?>
