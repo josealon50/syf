@@ -1,7 +1,7 @@
 <?php
     require_once( './config.php');
-    require_once("/home/public_html/weblibs/iware/php/utils/IAutoLoad.php");
-    //require_once("/var/www/public/weblibs/iware/php/utils/IAutoLoad.php");
+    //require_once("/home/public_html/weblibs/iware/php/utils/IAutoLoad.php");
+    require_once("/var/www/public/weblibs/iware/php/utils/IAutoLoad.php");
     $autoload = new IAutoLoad($classpath);
 
     require_once( './config.php');
@@ -29,6 +29,7 @@
         if( $argv[1] !== 4 ){
             $settlement = fopen( $appconfig['synchrony']['REPORT_SYF_SETTLE_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'], "w+" );
             $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
+            $exceptionReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_EXCEPTION_FILENAME'], "w+" );
         }
 
         $transactionsPerStore = [];
@@ -105,6 +106,10 @@
         $strMsg = "";
         
         if ( $argv[1] == 1 ){
+            //Check if exceptions are set  
+            if ( $exceptions !== '' ){
+                fwrite($exceptionReport, $exceptions);
+            }
             fwrite( $mainReport, "Settlement File was not uploaded ran in mode: 1\n");
             fclose( $settlement );
             fclose( $mainReport );
@@ -155,12 +160,62 @@
             fwrite( $mainReport, "Settlement File Upload Error Code: " . $syf->getErrorCodeUpload() . "\n");
             fwrite( $mainReport, "Settlement File Upload Error Message: " . $syf->getErrorUploadMessage() . "\n");
             fwrite( $mainReport, "Please use the SYF upload module to reupload the settlement file\n" );
-
-        }
-        else{
-            exit();
         }
     
+    }
+    else if ( $argv[1] == 5 ){
+        if ( is_null($argv[2]) ){
+            echo "Running mode: " . $argv[1] . " needs a store code passed in";
+            exit();
+        }
+
+        $settlement = fopen( $appconfig['synchrony']['REPORT_SYF_SETTLE_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'], "w+" );
+        $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
+        $exceptionReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_EXCEPTION_FILENAME'], "w+" );
+
+        $transactionsPerStore = [];
+        $totalSales = 0;
+        $totalReturns = 0;
+        $validData = 0;
+        $exchanges = '';
+        $simpleRet = '';
+        $exceptions = '';
+        $delDocWrittends = [];
+
+        $db = sessionConnect();
+        $settle = new SettlementInfo($db);
+        $syf= new SynchronyFinance( $db );
+        $asfm = new ASPStoreForward($db);
+
+        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ('H') AND TRUNC(CREATE_DT_TIME) < TRUNC(SYSDATE) AND ASP_STORE_FORWARD.STORE_CD = '" . $argv[2] . "' ";
+        $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
+
+        $result = $settle->query($where, $postclauses);
+        if ( $result < 0 ){
+            echo "AspStoreForward query error: " . $settle->getError() . "\n";
+            return;
+        }
+
+        $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
+
+        //Call to write bank and batch trailer
+        foreach( $transactionsPerStore as $key => $value ){
+            //Writing to settlement file bank and batch header
+            fwrite($settlement, $syf->getBankHeader());
+            fwrite($settlement, $syf->getBatchHeader($db, $key));
+            fwrite($settlement, $value['records']);
+            fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
+            fwrite($settlement, $syf->getBankTrailer( $value['total_records'], $value['amount'] ));
+        }
+
+        $strMsg = "";
+        //Check if exceptions are set  
+        if ( $exceptions !== '' ){
+            fwrite($exceptionReport, $exceptions);
+        }
+        fclose( $settlement );
+        fclose( $mainReport );
+
     }
     else{
         echo "Mode Unsupported\n";

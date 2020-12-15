@@ -460,7 +460,7 @@
             //Main Driving loop 
             while( $row = $settle->next() ){
                 $str = "";
-                $valid = $this->validateData($db,$row);
+                $valid = $this->validateData($row);
                 
                 //REVOME THIS STATEMENT ONLY FOR TESTING
                 //$valid=[];
@@ -594,18 +594,17 @@
 	     *
 	     *
 	     */
-        public function validateData( $row ){ 
+        public function validateData($row){ 
             global $appconfig;
 
             $errors =[];
-            if( is_null($row['CUST_ASP_ACCT_NUM']) ){
-                array_push( $errors, ErrorMessages::CUST_ASP_NO_ACCT;
+            if( is_null($row['ACCT_NUM']) ){
+                array_push( $errors, ErrorMessages::CUST_ASP_NO_ACCT );
             }
 
-            if( in_array( $row['SO_ASP_PROMO_CD'],  $appconfig['synchrony']['INVALID_PROMO_CODES'] ){
-                array_push( $errors, ErrorMessages::INVALID_PROMO_CODES;
+            if( in_array( $row['SO_ASP_PROMO_CD'],  $appconfig['synchrony']['INVALID_PROMO_CODES'] )){
+                array_push( $errors, ErrorMessages::INVALID_PROMO_CODES );
             }
-
             
             return $errors; 
         
@@ -624,8 +623,9 @@
 	     *
 	     */
         public function archive(){
+            global $appconfig;
             try{
-                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'] . date("YmdHis") ));
+                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'] . date("YmdHis") );
 
                 //Archive older encrypted file and timestamp it 
                 $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'] . date("YmdHis") );
