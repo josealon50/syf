@@ -232,6 +232,7 @@
                 fwrite($exceptionReport, $value['EXCEPTION']);
             }
         }
+        fclose( $exceptionReport );
         fclose( $settlement );
         fclose( $mainReport );
 
