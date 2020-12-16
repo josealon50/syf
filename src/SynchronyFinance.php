@@ -522,9 +522,10 @@
                                 continue;
 
                             }
-                            $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
 
-                            array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E"));
+                            $error = $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
+
+                            array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E", "EXCEPTION" => $error));
 
                             continue;
                         }
@@ -563,17 +564,18 @@
                             array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
 
                             if ( count($valid) > 1 ){
-                                $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
+                                $error = $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
 
-                                array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E"));
+                                array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E", "EXCEPTION" => $error));
                             }
                         }
                         continue;   
                     }
 
-                    $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
+                    $error = $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
 
-                    array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E"));
+                    array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E", "EXCEPTION" => $error));
+
                 }
                     
             }
@@ -625,10 +627,13 @@
         public function archive(){
             global $appconfig;
             try{
-                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME_DEC'] . date("YmdHis") );
+                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "/" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . "/" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'] . "." . date("YmdHis") );
+
+                //Archive older report file and timestamp it 
+                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "/" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . "/" .  $appconfig['synchrony']['SYF_REPORT_FILENAME'] . "." . date("YmdHis") );
 
                 //Archive older encrypted file and timestamp it 
-                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . $appconfig['synchrony']['SYF_REPORT_FILENAME'] . date("YmdHis") );
+                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "/" . $appconfig['synchrony']['SYF_SETTLE_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . "/" .  $appconfig['synchrony']['SYF_SETTLE_FILENAME'] . "." . date("YmdHis") );
 
                 return $error; 
             }

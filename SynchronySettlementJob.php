@@ -106,19 +106,24 @@
         $strMsg = "";
         
         if ( $argv[1] == 1 ){
-            //Check if exceptions are set  
-            if ( $exceptions !== '' ){
-                fwrite($exceptionReport, $exceptions);
+            //Check if exceptions are set generate report  
+            foreach( $recordsToUpdate as $key => $value ){
+                if ( $value['STAT_CD'] == 'E' ){
+                    fwrite($exceptionReport, $value['EXCEPTION']);
+                }
             }
+
             fwrite( $mainReport, "Settlement File was not uploaded ran in mode: 1\n");
             fclose( $settlement );
             fclose( $mainReport );
+            fclose( $exceptionReport );
             exit();
         }
         else if ( $argv[1] == 3 ){
             if( !$syf->archive() ){
                 fwrite( $mainReport, "Settlement: Archiving Failed\n");
             }
+            
             if( processOut($syf) ){
                 fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
             }
@@ -132,8 +137,20 @@
 
             updateASFMRecords( $asfm, $recordsToUpdate );
 
+            //Check if exceptions are set generate report  
+            foreach( $recordsToUpdate as $key => $value ){
+                if ( $value['STAT_CD'] == 'E' ){
+                    fwrite($exceptionReport, $value['EXCEPTION']);
+                }
+            }
+
+
             //Write complete report
             $report = $syf->createMainReport( $mainReport, $exceptions, $simpleRet, $exchanges, $manuals, $agingRet, $agingExc, $evenExchangesErrors );
+
+            fclose( $settlement );
+            fclose( $mainReport );
+            fclose( $exceptionReport );
 
             // Send email that the SETTL process has completed
             //$syf->emailSettleCompleted( $appconfig, "SYF", $appconfig['MAIN_REPORT_DIR'] . $syf->getMainReportName(), $strMsg );        
@@ -179,7 +196,7 @@
         $validData = 0;
         $exchanges = '';
         $simpleRet = '';
-        $exceptions = '';
+        $exceptions = [];
         $delDocWrittends = [];
 
         $db = sessionConnect();
@@ -196,7 +213,7 @@
             return;
         }
 
-        $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
+        $records = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
 
         //Call to write bank and batch trailer
         foreach( $transactionsPerStore as $key => $value ){
@@ -210,8 +227,10 @@
 
         $strMsg = "";
         //Check if exceptions are set  
-        if ( $exceptions !== '' ){
-            fwrite($exceptionReport, $exceptions);
+        foreach( $records as $key => $value ){
+            if ( $value['STAT_CD'] == 'E' ){
+                fwrite($exceptionReport, $value['EXCEPTION']);
+            }
         }
         fclose( $settlement );
         fclose( $mainReport );
@@ -244,6 +263,12 @@
         foreach ( $updt as $key => $row ){
             $asfm->set_STAT_CD($row['STAT_CD']);
 
+            if ( $row['STAT_CD'] == 'E' ){
+                $asfm->set_ERROR_CD( 'EXCEPTION' );
+                $tmp = explode( ',', $row['EXCEPTION'] );
+                $asfm->set_ERROR_DES( trim($tmp[count($tmp)-1]) );
+            }
+
             $where = "WHERE DEL_DOC_NUM = '" . $row['DEL_DOC_NUM'] . "' "
                     ."AND CUST_CD = '" . $row['CUST_CD'] . "' "
                     ."AND STORE_CD = '" . $row['STORE_CD'] . "' "
@@ -259,7 +284,7 @@
         }
     }
 
-    function processOut( $syf, $mainReport ){
+    function processOut( $syf ){
         //First encrypt file 
         if ( $syf->encrypt() ){
             if ( $syf->uploadSettlement() ){
