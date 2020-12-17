@@ -94,6 +94,9 @@
         if ($argv[1] !== 4 ){
             //Call to write bank and batch trailer
             foreach( $transactionsPerStore as $key => $value ){
+                //Make sure to format the string correctly
+                $value['amount'] = number_format( $value['amount'], 2, '.', '' );
+
                 //Writing to settlement file bank and batch header
                 fwrite($settlement, $syf->getBankHeader());
                 fwrite($settlement, $syf->getBatchHeader($db, $key));
@@ -153,7 +156,7 @@
             fclose( $exceptionReport );
 
             // Send email that the SETTL process has completed
-            //$syf->emailSettleCompleted( $appconfig, "SYF", $appconfig['MAIN_REPORT_DIR'] . $syf->getMainReportName(), $strMsg );        
+            //$syf->emailSettleCompleted();        
         }
         else if ( $argv[1] == 4 ){
             updateASFMRecords( $asfm, $recordsToUpdate );
@@ -217,6 +220,9 @@
 
         //Call to write bank and batch trailer
         foreach( $transactionsPerStore as $key => $value ){
+            //Make sure to format the string correctly
+            $value['amount'] = number_format( $value['amount'], 2, '.', '' );
+
             //Writing to settlement file bank and batch header
             fwrite($settlement, $syf->getBankHeader());
             fwrite($settlement, $syf->getBatchHeader($db, $key));
