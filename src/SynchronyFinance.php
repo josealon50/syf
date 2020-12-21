@@ -610,6 +610,10 @@
             } 
 
             //Check if auth code
+            if ( !is_numeric($row['APP_CD']) ) {
+                array_push( $errors, ErrorMessages::INVALID_AUTH_CODE );
+
+            }
             if ( strlen($row['APP_CD']) !== 6 ){
                 array_push( $errors, ErrorMessages::INVALID_AUTH_CODE_LENGTH );
             } 
