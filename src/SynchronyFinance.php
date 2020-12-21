@@ -603,6 +603,16 @@
             if( is_null($row['ACCT_NUM']) ){
                 array_push( $errors, ErrorMessages::CUST_ASP_NO_ACCT );
             }
+            //Check if acct number is lees than 16 digit
+            $decryption = openssl_decrypt( $row['ACCT_NUM'], $appconfig['ciphering'], $appconfig['encryption_key'], $appconfig['options'], $appconfig['encryption_iv']);
+            if ( strlen($decryption) !== 16 ) {
+                array_push( $errors, ErrorMessages::INVALID_ACCT_NUMBER_LENGTH );
+            } 
+
+            //Check if auth code
+            if ( strlen($row['APP_CD']) !== 6 ){
+                array_push( $errors, ErrorMessages::INVALID_AUTH_CODE_LENGTH );
+            } 
 
             if( in_array( $row['SO_ASP_PROMO_CD'],  $appconfig['synchrony']['INVALID_PROMO_CODES'] )){
                 array_push( $errors, ErrorMessages::INVALID_PROMO_CODES );
@@ -642,6 +652,40 @@
             }
 
         }
+
+        /*
+        public function emailSettleCompleted(){
+            global $appconfig;
+
+            $mail = new PHPMailer;
+            $mail->isSMTP();
+            $mail->Host = 'morexch.morfurniture.local';
+            $mail->Port = 25;
+            $mail->From     = 'misgroup@morfurniture.com';
+            $mail->FromName = 'Mailer';
+            $mail->addAddress('ar@morfurniture.com'); //should go to finance@morfurniture.com
+            $mail->addReplyTo('ar@morfurniture.com');
+            $attachfile = $appconfig['TD_IN'].$fileName.'.csv';
+            //$attachfile = '/gers/live/finance/td/in/'.$fileName.'.csv';
+            $mail->WordWrap = 50;
+            $mail->addAttachment($attachfile);
+            $mail->isHTML(true);
+            $mail->Subject = "FCRIN Exception File for ".$argv[2];
+            $newline = '<br>';
+            $mail->Body    = '<b>You processed '.$processed.' items to FCRIN. Here are the exceptions!</b>'.$newline.$newline ;
+
+            if(!$mail->send()) {
+                echo 'Message could not be sent.'."\n";
+                echo 'Mailer Error: ' . $mail->ErrorInfo;
+                return -1;
+            } else {
+                echo 'Message has been sent'."\n\n";
+            }
+            return true;
+
+
+        }
+         */
 
     }
 
