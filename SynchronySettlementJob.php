@@ -238,6 +238,10 @@
                 fwrite($exceptionReport, $value['EXCEPTION']);
             }
         }
+        if ( $argv[5] == 1 ){
+            updateASFMRecords( $asfm, $records );
+        }
+
         fclose( $exceptionReport );
         fclose( $settlement );
         fclose( $mainReport );
