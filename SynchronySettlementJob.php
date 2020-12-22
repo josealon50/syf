@@ -109,11 +109,10 @@
         $strMsg = "";
         
         if ( $argv[1] == 1 ){
-            //Check if exceptions are set generate report  
-            foreach( $recordsToUpdate as $key => $value ){
-                if ( $value['STAT_CD'] == 'E' ){
-                    fwrite($exceptionReport, $value['EXCEPTION']);
-                }
+            //Build exception file
+            $error = buildExceptionFile( $exceptionReport, $records );
+            if ( $error ){
+                fwrite($mainReport, "SYF Settlement: Error Building Exception file\n" );
             }
 
             fwrite( $mainReport, "Settlement File was not uploaded ran in mode: 1\n");
@@ -140,11 +139,10 @@
 
             updateASFMRecords( $asfm, $recordsToUpdate );
 
-            //Check if exceptions are set generate report  
-            foreach( $recordsToUpdate as $key => $value ){
-                if ( $value['STAT_CD'] == 'E' ){
-                    fwrite($exceptionReport, $value['EXCEPTION']);
-                }
+            //Build exception file
+            $error = buildExceptionFile( $exceptionReport, $recordsToUpdate );
+            if ( $error ){
+                fwrite($mainReport, "SYF Settlement: Error Building Exception file\n" );
             }
 
 
@@ -213,7 +211,7 @@
         $result = $settle->query($where, $postclauses);
         if ( $result < 0 ){
             echo "AspStoreForward query error: " . $settle->getError() . "\n";
-            return;
+            exit();
         }
 
         $records = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
@@ -231,13 +229,14 @@
             fwrite($settlement, $syf->getBankTrailer( $value['total_records'], $value['amount'] ));
         }
 
-        $strMsg = "";
-        //Check if exceptions are set  
-        foreach( $records as $key => $value ){
-            if ( $value['STAT_CD'] == 'E' ){
-                fwrite($exceptionReport, $value['EXCEPTION']);
-            }
+        //Build exception file
+        $error = buildExceptionFile( $exceptionReport, $records );
+        if ( $error ){
+            fwrite($mainReport, "SYF Settlement: Error Building Exception file\n" );
         }
+
+        
+
         if ( $argv[5] == 1 ){
             updateASFMRecords( $asfm, $records );
         }
@@ -275,9 +274,7 @@
             $asfm->set_STAT_CD($row['STAT_CD']);
 
             if ( $row['STAT_CD'] == 'E' ){
-                $asfm->set_ERROR_CD( 'EXCEPTION' );
-                $tmp = explode( ',', $row['EXCEPTION'] );
-                $asfm->set_ERROR_DES( trim($tmp[count($tmp)-1]) );
+                $asfm->set_ERROR_DES(trim(substr(implode($row['EXCEPTIONS'], ","), 0, 180)));
             }
 
             $where = "WHERE DEL_DOC_NUM = '" . $row['DEL_DOC_NUM'] . "' "
@@ -305,5 +302,19 @@
                 return false;
             }	
         }
+    }
+    function buildExceptionFile( $handle, $records ){
+        //Check if exceptions are set  
+        foreach( $records as $key => $value ){
+            try{ 
+                if ( $value['STAT_CD'] == 'E' ){
+                    fwrite( $handle, $value['DEL_DOC_NUM'] . "," .$value['CUST_CD'] . "," . $value['STORE_CD'] . "," . $value['AS_CD'] . "," . $value['AS_TRN_TP'] . "," . $value['AMT'] . "," . $value['APP_CD'] . "," . $value['SO_ASP_AS_PROMO_CD'] . "," . $value['FINAL_DT'] . "," . implode(",", $value['EXCEPTIONS']) . "\n" );
+                }
+            }
+            catch( Exception $e ){
+                return false;
+            }
+       }
+        return true;
     }
 ?>

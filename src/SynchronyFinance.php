@@ -339,7 +339,7 @@
 	     *
 	     *
 	     */
-		public function writeTicketToSettleFile( $db, $row, $settle, $counter ){
+		public function generateSynchronyRecordAndAddenda( $db, $row, $settle, $counter ){
             global $appconfig;
 
             $record = $this->processRecord( $db, $row, $counter );
@@ -467,7 +467,6 @@
 
                 //Check if array contain any errors
                 if ( count($valid) === 0 ){
-                    //Check for split tickets in ASFM
                     if ( strcmp($row['AS_TRN_TP'], 'PAUTH') === 0 ){
                         $totalSales += $row['AMT'];
                     }
@@ -477,10 +476,24 @@
                     }
                     
                     //Update ASFM Record
-                    array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "P"));
+                    $tmp = array(   
+                        "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,
+                        "CUST_CD" => $row['CUST_CD'] ,
+                        "STORE_CD" => $row['STORE_CD'] ,
+                        "AS_CD" => $row["AS_CD"] ,
+                        "AS_TRN_TP" => $row['AS_TRN_TP'] ,
+                        "AMT" => $row['AMT'] ,
+                        "APP_CD" => $row['APP_CD'],
+                        "FINAL_DT" => $row['FINAL_DT'],
+                        "SO_ASP_AS_PROMO_CD" => $row['SO_ASP_AS_PROMO_CD'],
+                        "IDROW" => $row['IDROW'] ,
+                        "STAT_CD" => "P"
+                    );
+
+                    array_push( $update, $tmp );
 
                     //Write to upload files
-                    $ticket = $this->writeTicketToSettleFile($db, $row, $settlement, $validData );
+                    $ticket = $this->generateSynchronyRecordAndAddenda($db, $row, $settlement, $validData );
 
                     //Keep track of transactions per store
                     if ( array_key_exists( $row['STORE_CD'], $transactionsPerStore )){
@@ -497,87 +510,25 @@
                     $validData++;
                 }
                 else{
-                    if ( array_key_exists('R', $valid) ){
-                        if ( count($valid) > 1 ){                        
-                            if ( strlen($row['DEL_DOC_NUM']) > 11 || strcmp($row['AS_TRN_TP'], 'RET') === 0 ){
-                                //Check if return ticket have a sale side attatch to it
-                                if ( array_search( substr($row['DEL_DOC_NUM'], 0, 11), $delDocWrittens ) !== FALSE ) {
-                                    continue;
-                                }
-                                else{ 
-                                    $str = $this->getSaleSide( $db, $row );
+                    //Update ASFM Record
+                    $tmp = array(   
+                        "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,
+                        "CUST_CD" => $row['CUST_CD'] ,
+                        "STORE_CD" => $row['STORE_CD'] ,
+                        "AS_CD" => $row["AS_CD"] ,
+                        "AS_TRN_TP" => $row['AS_TRN_TP'] ,
+                        "AMT" => $row['AMT'] ,
+                        "APP_CD" => $row['APP_CD'],
+                        "FINAL_DT" => $row['FINAL_DT'],
+                        "SO_ASP_AS_PROMO_CD" => $row['SO_ASP_AS_PROMO_CD'],
+                        "IDROW" => $row['IDROW'] ,
+                        "STAT_CD" => "E",
+                        "EXCEPTIONS" => $valid
+                    );
 
-                                    if ( strcmp( $str,"") === 0 ){
-                                        $simpleRet .= $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['ORD_TP_CD'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                                        array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                                    }
-                                    else{
-                                        $exchanges .= $str;
-                                        $exchanges .=  $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                                        array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                                    }
-                                }
-                                continue;
-
-                            }
-
-                            $error = $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
-
-                            array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E", "EXCEPTION" => $error));
-
-                            continue;
-                        }
-                        else{
-                            //Check if return ticket have a sale side attatch to it
-                            if ( array_search( substr($row['DEL_DOC_NUM'], 0, 11), $delDocWrittens ) !== FALSE ) {
-                                continue;
-                            }
-                            else{ 
-                                $str = $this->getSaleSide( $db, $row );
-                                if ( strcmp( $str,"") === 0 ){
-                                    $simpleRet .= $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['ORD_TP_CD'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                                    array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                                }
-                                else{
-                                    $exchanges .= $str;
-                                    $exchanges .=  $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                                    array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                                }
-                            }
-                            continue;   
-                        }
-                    }                
-                    if ( array_key_exists( 'SPL', $valid )){
-                        //Check if return ticket have a sale side attatch to it
-                        if ( array_search( substr($row['DEL_DOC_NUM'], 0, 11), $delDocWrittens ) !== FALSE ) {
-                            continue;
-                        }
-                        else{ 
-                            $str = $this->getCreditSide( $db, $row );
-
-                            $exchanges .= $str;
-                            $exchanges .=  $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                            array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                            if ( count($valid) > 1 ){
-                                $error = $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
-
-                                array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E", "EXCEPTION" => $error));
-                            }
-                        }
-                        continue;   
-                    }
-
-                    $error = $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
-
-                    array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E", "EXCEPTION" => $error));
-
-                }
+                    array_push( $update, $tmp );
                     
+                }
             }
             return $update;
         }
@@ -600,23 +551,31 @@
             global $appconfig;
 
             $errors =[];
-            if( is_null($row['ACCT_NUM']) ){
+            if( !is_null($row['ACCT_NUM']) ){
+                //Check if acct number is lees than 16 digit
+                $decryption = openssl_decrypt( $row['ACCT_NUM'], $appconfig['ciphering'], $appconfig['encryption_key'], $appconfig['options'], $appconfig['encryption_iv']);
+                if ( strlen($decryption) !== 16 ) {
+                    array_push( $errors, ErrorMessages::INVALID_ACCT_NUMBER_LENGTH );
+                } 
+            }
+            else{
                 array_push( $errors, ErrorMessages::CUST_ASP_NO_ACCT );
             }
-            //Check if acct number is lees than 16 digit
-            $decryption = openssl_decrypt( $row['ACCT_NUM'], $appconfig['ciphering'], $appconfig['encryption_key'], $appconfig['options'], $appconfig['encryption_iv']);
-            if ( strlen($decryption) !== 16 ) {
-                array_push( $errors, ErrorMessages::INVALID_ACCT_NUMBER_LENGTH );
-            } 
 
-            //Check if auth code
-            if ( !is_numeric($row['APP_CD']) ) {
+            if ( !is_null($row['APP_CD']) ){
+                if ( strlen($row['APP_CD']) !== 6 ){
+                    array_push( $errors, ErrorMessages::INVALID_AUTH_CODE_LENGTH );
+                } 
+                //Check if auth code
+                if ( !is_numeric($row['APP_CD']) ) {
+                    array_push( $errors, ErrorMessages::INVALID_AUTH_CODE );
+                }
+                
+            }
+            else{
                 array_push( $errors, ErrorMessages::INVALID_AUTH_CODE );
 
             }
-            if ( strlen($row['APP_CD']) !== 6 ){
-                array_push( $errors, ErrorMessages::INVALID_AUTH_CODE_LENGTH );
-            } 
 
             if( in_array( $row['SO_ASP_PROMO_CD'],  $appconfig['synchrony']['INVALID_PROMO_CODES'] )){
                 array_push( $errors, ErrorMessages::INVALID_PROMO_CODES );
