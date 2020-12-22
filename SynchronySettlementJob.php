@@ -1,7 +1,7 @@
 <?php
     require_once( './config.php');
-    require_once("/home/public_html/weblibs/iware/php/utils/IAutoLoad.php");
-    //require_once("/var/www/public/weblibs/iware/php/utils/IAutoLoad.php");
+    //require_once("/home/public_html/weblibs/iware/php/utils/IAutoLoad.php");
+    require_once("/var/www/public/weblibs/iware/php/utils/IAutoLoad.php");
     $autoload = new IAutoLoad($classpath);
 
     require_once( './config.php');

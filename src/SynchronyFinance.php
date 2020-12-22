@@ -492,18 +492,21 @@
 
                     array_push( $update, $tmp );
 
+                    //Format number into money format
+                    $row['AMT'] = number_format( $row['AMT'], 2, '.', '' );
+
                     //Write to upload files
                     $ticket = $this->generateSynchronyRecordAndAddenda($db, $row, $settlement, $validData );
 
                     //Keep track of transactions per store
                     if ( array_key_exists( $row['STORE_CD'], $transactionsPerStore )){
                         $transactionsPerStore[$row['STORE_CD']]['total_records'] += 1;
-                        $transactionsPerStore[$row['STORE_CD']]['amount'] = $row['ORD_TP_CD'] == 'SAL' ? $row['AMT'] + $transactionsPerStore[$row['STORE_CD']]['amount'] : $transactionsPerStore[$row['STORE_CD']]['amount'] - $row['AMT'];
+                        $transactionsPerStore[$row['STORE_CD']]['amount'] = $row['ORD_TP_CD'] == 'SAL' ? number_format($row['AMT'] + $transactionsPerStore[$row['STORE_CD']]['amount'], 2, '.', '') : number_format( $transactionsPerStore[$row['STORE_CD']]['amount'] - $row['AMT'], 2, '.', '');
                         $transactionsPerStore[$row['STORE_CD']]['records'] .= $ticket;
                     }
                     else{
                         $transactionsPerStore[$row['STORE_CD']]['total_records'] = 1;
-                        $transactionsPerStore[$row['STORE_CD']]['amount'] = $row['ORD_TP_CD'] == 'SAL' ? 0 + $row['AMT'] : 0 - $row['AMT'];
+                        $transactionsPerStore[$row['STORE_CD']]['amount'] = $row['ORD_TP_CD'] == 'SAL' ? number_format(0 + $row['AMT'], 2, '.', '') : number_format(0 - $row['AMT'], 2, '.', '');
                         $transactionsPerStore[$row['STORE_CD']]['records'] = $ticket;
 
                     }
