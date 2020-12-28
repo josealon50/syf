@@ -66,6 +66,14 @@
         //Tickets cannot be settle on the same day the sale it is finalized. 
         $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ('H') AND TRUNC(CREATE_DT_TIME) < TRUNC(SYSDATE)";
 
+        if ( $appconfig['synchrony']['PROCESS_STORE_CD'] !== '' ){
+            $where .= " AND STORE_CD IN ( " . $appconfig['synchrony']['PROCESS_STORE_CD'] . " ) ";
+        }
+
+        if ( $appconfig['synchrony']['PROCESS_ONLY_SAL'] ){
+            $where .= " AND ASP_STORE_FORWARD.AS_TRN_TP = 'SAL' ";
+        }
+
         $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
 
         $result = $settle->query($where, $postclauses);
@@ -80,6 +88,14 @@
 
         //Get all manual tickets 
         $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD = 'S'";
+
+        if ( $appconfig['synchrony']['STORE_CD_PROCESS'] !== '' ){
+            $where .= " AND STORE_CD IN ( " . $appconfig['synchrony']['STORE_CD_PROCESS'] . " ) ";
+        }
+
+        if ( $appconfig['synchrony']['PROCESS_ONLY_SAL'] ){
+            $where .= " AND ASP_STORE_FORWARD.AS_TRN_TP = 'SAL' ";
+        }
 
         $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
 
@@ -182,11 +198,6 @@
     
     }
     else if ( $argv[1] == 5 ){
-        if ( is_null($argv[2]) ){
-            echo "Running mode: " . $argv[1] . " needs a store code passed in";
-            exit();
-        }
-
         $settlement = fopen( $appconfig['synchrony']['REPORT_SYF_SETTLE_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'], "w+" );
         $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
         $exceptionReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_EXCEPTION_FILENAME'], "w+" );
@@ -205,7 +216,16 @@
         $syf= new SynchronyFinance( $db );
         $asfm = new ASPStoreForward($db);
 
-        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ('H') AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $argv[3] . "' AND '" . $argv[4] . "' AND ASP_STORE_FORWARD.STORE_CD = '" . $argv[2] . "' ";
+        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ('H') AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $argv[2] . "' AND '" . $argv[3] . "' ";
+
+        if ( $appconfig['synchrony']['PROCESS_STORE_CD'] !== '' ){
+            $where .= " AND ASP_STORE_FORWARD.STORE_CD IN ( " . $appconfig['synchrony']['PROCESS_STORE_CD'] . " ) ";
+        }
+
+        if ( $appconfig['synchrony']['PROCESS_ONLY_SAL'] ){
+            $where .= " AND ASP_STORE_FORWARD.AS_TRN_TP = 'SAL' ";
+        }
+
         $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
 
         $result = $settle->query($where, $postclauses);
@@ -237,7 +257,7 @@
 
         
 
-        if ( $argv[5] == 1 ){
+        if ( $argv[4] == 1 ){
             updateASFMRecords( $asfm, $records );
         }
 
