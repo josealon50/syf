@@ -50,14 +50,22 @@
 
         //Query will get all tickets with status code of H and it was created one day before the ticket it's created.
         //Tickets cannot be settle on the same day the sale it is finalized. 
-        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ('H') AND TRUNC(CREATE_DT_TIME) < TRUNC(SYSDATE)";
+        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ( 'H', 'S' ) ";
 
         if ( $appconfig['synchrony']['PROCESS_STORE_CD'] !== '' ){
             $where .= " AND STORE_CD IN ( " . $appconfig['synchrony']['PROCESS_STORE_CD'] . " ) ";
         }
 
         if ( $appconfig['synchrony']['PROCESS_ONLY_SAL'] ){
-            $where .= " AND ASP_STORE_FORWARD.AS_TRN_TP = 'SAL' ";
+            $where .= " AND ASP_STORE_FORWARD.AS_TRN_TP = 'PAUTH' ";
+        }
+
+        if ( $appconfig['synchrony']['PROCESS_FROM_DATE'] !== '' && $appconfig['synchrony']['PROCESS_TO_DATE'] !== '' ){
+            $where = "AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $appconfig['synchrony']['PROCESS_FROM_DATE'] . "' AND '" . $appconfig['synchrony']['PROCESS_TO_DATE'] . "' ";
+        }
+        else{
+            //Calculate between dates
+            
         }
 
         $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
@@ -69,30 +77,8 @@
             return;
         }
 
-        $rec = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
-        $recordsToUpdate = array_merge( $rec, $recordsToUpdate );
-
-        //Get all manual tickets 
-        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD = 'S'";
-
-        if ( $appconfig['synchrony']['STORE_CD_PROCESS'] !== '' ){
-            $where .= " AND STORE_CD IN ( " . $appconfig['synchrony']['STORE_CD_PROCESS'] . " ) ";
-        }
-
-        if ( $appconfig['synchrony']['PROCESS_ONLY_SAL'] ){
-            $where .= " AND ASP_STORE_FORWARD.AS_TRN_TP = 'SAL' ";
-        }
-
-        $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
-
-        $result = $settle->query($where, $postclauses);
-        if ( $result < 0 ){
-            echo "AspStoreForward query error: " . $settle->getError() . "\n";
-            return;
-        }
-        $rec = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
-        $recordsToUpdate = array_merge( $rec, $recordsToUpdate );
-
+        $recordsToUpdate = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
+        
         if ($argv[1] !== 4 ){
             //Call to write bank and batch trailer
             foreach( $transactionsPerStore as $key => $value ){
@@ -202,7 +188,7 @@
         $syf= new SynchronyFinance( $db );
         $asfm = new ASPStoreForward($db);
 
-        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ('H') AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $argv[2] . "' AND '" . $argv[3] . "' ";
+        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ('H') ";
 
         if ( $appconfig['synchrony']['PROCESS_STORE_CD'] !== '' ){
             $where .= " AND ASP_STORE_FORWARD.STORE_CD IN ( " . $appconfig['synchrony']['PROCESS_STORE_CD'] . " ) ";
@@ -210,6 +196,10 @@
 
         if ( $appconfig['synchrony']['PROCESS_ONLY_SAL'] ){
             $where .= " AND ASP_STORE_FORWARD.AS_TRN_TP = 'PAUTH' ";
+        }
+
+        if ( $appconfig['synchrony']['PROCESS_FROM_DATE'] !== '' && $appconfig['synchrony']['PROCESS_TO_DATE'] !== '' ){
+            $where .= "AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $appconfig['synchrony']['PROCESS_FROM_DATE'] . "' AND '" . $appconfig['synchrony']['PROCESS_TO_DATE'] . "' ";
         }
 
         $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
@@ -243,7 +233,7 @@
 
         
 
-        if ( $argv[4] == 1 ){
+        if ( $argv[2] == 1 ){
             updateASFMRecords( $asfm, $records );
         }
 
