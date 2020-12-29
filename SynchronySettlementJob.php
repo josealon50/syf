@@ -1,26 +1,12 @@
 <?php
-    require_once( './config.php');
-    require_once("/home/public_html/weblibs/iware/php/utils/IAutoLoad.php");
-    //require_once("/var/www/public/weblibs/iware/php/utils/IAutoLoad.php");
-    $autoload = new IAutoLoad($classpath);
-
-    require_once( './config.php');
-    require_once( './libs/IDBResource.php');
-    require_once( './libs/IDBTable.php');
-    require_once( './db/SettlementInfo.php');
-    require_once( './db/MorStoreToAspMerchant.php');
-    require_once( './db/ASPStoreForward.php');
-    require_once( './db/CustAsp.php');
-    require_once( './db/ASPTrn.php');
-    require_once( './db/SoAsp.php' );
-    require_once( './src/Finance/FinanceCompany.php');
-    require_once( './src/SynchronyFinance.php');
-    require_once( './src/ErrorMessages.php');
-    //require_once("../../public/libs".DIRECTORY_SEPARATOR."iware".DIRECTORY_SEPARATOR."php".DIRECTORY_SEPARATOR."utils".DIRECTORY_SEPARATOR."IAutoLoad.php");
+    include_once( './config.php');
+    include_once( './autoload.php' );
 
     set_include_path(get_include_path() . PATH_SEPARATOR . 'libs/phpseclib');
     include 'Net/SFTP.php';
     include 'Crypt/RSA.php';
+
+    spl_autoload_register('SynchronyAutoload');
 
     global $appconfig;
 
