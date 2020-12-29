@@ -209,7 +209,7 @@
         }
 
         if ( $appconfig['synchrony']['PROCESS_ONLY_SAL'] ){
-            $where .= " AND ASP_STORE_FORWARD.AS_TRN_TP = 'SAL' ";
+            $where .= " AND ASP_STORE_FORWARD.AS_TRN_TP = 'PAUTH' ";
         }
 
         $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
