@@ -223,18 +223,27 @@
 
         $records = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
 
+        //Generate settlement file 
+        $totalAmountForBatch = 0;
+        $totalRecordsForBatch = 0;
+
+        fwrite($settlement, $syf->getBankHeader());
         //Call to write bank and batch trailer
         foreach( $transactionsPerStore as $key => $value ){
             //Make sure to format the string correctly
             $value['amount'] = number_format( $value['amount'], 2, '.', '' );
 
+            //Sum totals for Bank trailer
+            $totalAmountForBatch += number_format( $value['amount'], 2, '.', '' );
+            $totalRecordsForBatch += $value['total_records']; 
+
             //Writing to settlement file bank and batch header
-            fwrite($settlement, $syf->getBankHeader());
             fwrite($settlement, $syf->getBatchHeader($db, $key));
             fwrite($settlement, $value['records']);
             fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
-            fwrite($settlement, $syf->getBankTrailer( $value['total_records'], $value['amount'] ));
         }
+
+        fwrite($settlement, $syf->getBankTrailer( $totalRecordsForBatch, $totalAmountForBatch ));
 
         //Build exception file
         $error = buildExceptionFile( $exceptionReport, $records );
