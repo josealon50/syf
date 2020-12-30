@@ -1,5 +1,5 @@
 <?php
-    include_once( './config.php');
+    include_once( '../config.php');
     include_once( './autoload.php' );
 
     set_include_path(get_include_path() . PATH_SEPARATOR . 'libs/phpseclib');
@@ -65,6 +65,17 @@
         }
         else{
             //Calculate between dates
+            if ( date('D') === 'Mon' ){
+                $fromDate = new IDate();
+                $toDate = new IDate();
+                $toDate->setDate( date('Y-m-d', strtotime('-2 days', strtotime($toDate->toString()))) );
+
+                $where .= "AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $fromDate->toStringOracle() . "' AND '" . $toDate->toStringOracle() . "' ";
+            }
+            else{
+                $where .= "AND TRUNC(CREATE_DT_TIME) < TRUNC(SYSDATE-1) ";
+
+            }
             
         }
 
