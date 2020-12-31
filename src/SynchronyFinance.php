@@ -486,6 +486,7 @@
                         "APP_CD" => $row['APP_CD'],
                         "FINAL_DT" => $row['FINAL_DT'],
                         "SO_ASP_AS_PROMO_CD" => $row['SO_ASP_AS_PROMO_CD'],
+                        "SO_ASP_PROMO_CD" => $row['SO_ASP_PROMO_CD'],
                         "IDROW" => $row['IDROW'] ,
                         "STAT_CD" => "P"
                     );
@@ -524,6 +525,7 @@
                         "APP_CD" => $row['APP_CD'],
                         "FINAL_DT" => $row['FINAL_DT'],
                         "SO_ASP_AS_PROMO_CD" => $row['SO_ASP_AS_PROMO_CD'],
+                        "SO_ASP_PROMO_CD" => $row['SO_ASP_PROMO_CD'],
                         "IDROW" => $row['IDROW'] ,
                         "STAT_CD" => "E",
                         "EXCEPTIONS" => $valid

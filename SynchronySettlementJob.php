@@ -326,11 +326,12 @@
         }
     }
     function buildExceptionFile( $handle, $records ){
+        fwrite( $handle, "DEL_DOC_NUM, CUST_CD, STORE_CD, AS_CD, AS_TRN_TP, AMT, AUTH_CD, PROMO, SYF_PROMO_CD, FINAL_DATE, EXCEPTIONS\n" );
         //Check if exceptions are set  
         foreach( $records as $key => $value ){
             try{ 
                 if ( $value['STAT_CD'] == 'E' ){
-                    fwrite( $handle, $value['DEL_DOC_NUM'] . "," .$value['CUST_CD'] . "," . $value['STORE_CD'] . "," . $value['AS_CD'] . "," . $value['AS_TRN_TP'] . "," . $value['AMT'] . "," . $value['APP_CD'] . "," . $value['SO_ASP_AS_PROMO_CD'] . "," . $value['FINAL_DT'] . "," . implode(",", $value['EXCEPTIONS']) . "\n" );
+                    fwrite( $handle, $value['DEL_DOC_NUM'] . "," .$value['CUST_CD'] . "," . $value['STORE_CD'] . "," . $value['AS_CD'] . "," . $value['AS_TRN_TP'] . "," . $value['AMT'] . "," . $value['APP_CD'] . "," . $value['SO_ASP_PROMO_CD'] . "," . $value['SO_ASP_AS_PROMO_CD'] . "," . $value['FINAL_DT'] . "," . implode(",", $value['EXCEPTIONS']) . "\n" );
                 }
             }
             catch( Exception $e ){
