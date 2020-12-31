@@ -247,7 +247,7 @@
             fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
         }
 
-        fwrite($settlement, $syf->getBankTrailer( $totalRecordsForBatch, $totalAmountForBatch ));
+        fwrite($settlement, $syf->getBankTrailer( $totalRecordsForBatch, number_format($totalAmountForBatch, 2, '.', '') ));
 
         //Build exception file
         $error = buildExceptionFile( $exceptionReport, $records );
