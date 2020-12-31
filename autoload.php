@@ -21,3 +21,8 @@ function SynchronyAutoload($className){
     }
 }
 
+
+spl_autoload_register('SynchronyAutoload');
+
+
+

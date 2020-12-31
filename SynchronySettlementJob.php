@@ -6,8 +6,6 @@
     include 'Net/SFTP.php';
     include 'Crypt/RSA.php';
 
-    spl_autoload_register('SynchronyAutoload');
-
     global $appconfig;
 
     //Only generate settlement or run normal
