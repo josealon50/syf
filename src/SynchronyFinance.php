@@ -622,7 +622,7 @@
         }
 
         /*
-        public function emailSettleCompleted(){
+        public function email(){
             global $appconfig;
 
             $mail = new PHPMailer;
@@ -631,14 +631,15 @@
             $mail->Port = 25;
             $mail->From     = 'misgroup@morfurniture.com';
             $mail->FromName = 'Mailer';
-            $mail->addAddress('ar@morfurniture.com'); //should go to finance@morfurniture.com
-            $mail->addReplyTo('ar@morfurniture.com');
-            $attachfile = $appconfig['TD_IN'].$fileName.'.csv';
-            //$attachfile = '/gers/live/finance/td/in/'.$fileName.'.csv';
+            $mail->addAddress(''); //should go to finance@morfurniture.com
+            $mail->addReplyTo('');
             $mail->WordWrap = 50;
-            $mail->addAttachment($attachfile);
+
+            $mail->addAttachment($appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_EXCEPTION_FILENAME']);
+
+
             $mail->isHTML(true);
-            $mail->Subject = "FCRIN Exception File for ".$argv[2];
+            $mail->Subject = "Synchrony Exception File";
             $newline = '<br>';
             $mail->Body    = '<b>You processed '.$processed.' items to FCRIN. Here are the exceptions!</b>'.$newline.$newline ;
 

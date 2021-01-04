@@ -48,7 +48,7 @@
 
         //Query will get all tickets with status code of H and it was created one day before the ticket it's created.
         //Tickets cannot be settle on the same day the sale it is finalized. 
-        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ( 'H', 'S' ) ";
+        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ( 'H' ) ";
 
         if ( $appconfig['synchrony']['PROCESS_STORE_CD'] !== '' ){
             $where .= " AND STORE_CD IN ( " . $appconfig['synchrony']['PROCESS_STORE_CD'] . " ) ";
@@ -61,21 +61,16 @@
         if ( $appconfig['synchrony']['PROCESS_FROM_DATE'] !== '' && $appconfig['synchrony']['PROCESS_TO_DATE'] !== '' ){
             $where = "AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $appconfig['synchrony']['PROCESS_FROM_DATE'] . "' AND '" . $appconfig['synchrony']['PROCESS_TO_DATE'] . "' ";
         }
-        else{
-            //Calculate between dates
-            if ( date('D') === 'Mon' ){
-                $fromDate = new IDate();
-                $toDate = new IDate();
-                $toDate->setDate( date('Y-m-d', strtotime('-2 days', strtotime($toDate->toString()))) );
-
-                $where .= "AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $fromDate->toStringOracle() . "' AND '" . $toDate->toStringOracle() . "' ";
-            }
-            else{
-                $where .= "AND TRUNC(CREATE_DT_TIME) < TRUNC(SYSDATE-1) ";
-
-            }
-            
+        else {
+            //Calculate dates 
+            $processedDates = getSettlementDates();
+            $where .= "AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $processedDates['FROM_DATE'] . "' AND '" . $processedDates['TO_DATE'] . "' ";
         }
+
+        $recordsToUpdate = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
+
+        //PROCESS MANUAL TICKETS
+        $where = "WHERE ASP_STORE_FORWARD.AS_CD = 'SYF' AND ASP_STORE_FORWARD.STAT_CD IN ( 'S' ) ";
 
         $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
 
@@ -86,7 +81,18 @@
             return;
         }
 
-        $recordsToUpdate = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
+        $tmp = $syf->validateRecords( $db, $asfm, $settle, $totalSales, $totalReturns, $exceptions, $simpleRet, $exchanges, $validData, $delDocWrittens, $settlement, $transactionsPerStore );
+
+        $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
+
+        $result = $settle->query($where, $postclauses);
+
+        if ( $result < 0 ){
+            echo "AspStoreForward query error: " . $settle->getError() . "\n";
+            return;
+        }
+
+        $recordsToUpdate =  array_merge( $recordsToUpdate, $tmp );
         
         if ($argv[1] !== 4 ){
             //Generate settlement file 
@@ -109,7 +115,7 @@
                 fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
             }
 
-            fwrite($settlement, $syf->getBankTrailer( $totalRecordsForBatch, number_format($totalAmountForBatch, 2, '.', '') ));
+            fwrite($settlement, $syf->getbanktrailer( $totalrecordsforbatch, number_format($totalamountforbatch, 2, '.', '') ));
 
         }
 
@@ -215,6 +221,11 @@
 
         if ( $appconfig['synchrony']['PROCESS_FROM_DATE'] !== '' && $appconfig['synchrony']['PROCESS_TO_DATE'] !== '' ){
             $where .= "AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $appconfig['synchrony']['PROCESS_FROM_DATE'] . "' AND '" . $appconfig['synchrony']['PROCESS_TO_DATE'] . "' ";
+        }
+        else {
+            //Calculate dates 
+            $processedDates = getSettlementDates();
+            $where .= "AND TRUNC(CREATE_DT_TIME) BETWEEN '" . $processedDates['FROM_DATE'] . "' AND '" . $processedDates['TO_DATE'] . "' ";
         }
 
         $postclauses = "ORDER BY STORE_CD, DEL_DOC_NUM";
@@ -337,5 +348,34 @@
             }
        }
         return true;
+    }
+
+    function getSettlementDates(){
+        global $appconfig;
+        
+        $dates = [];
+
+        $fromDate = new IDate();
+        $toDate = new IDate();
+
+        //Check if today is Monday 
+        if ( date('D') == 'Mon' ){
+            $twoDays = date("Y-m-d", strtotime("-2 day"));      
+            $fromDate->setDate( $twoDays );
+
+            $dates['FROM_DATE'] = $fromDate->toStringOracle();
+            $dates['TO_DATE'] = $toDate->toStringOracle();
+
+            return $dates;
+            
+        }
+
+        $oneDay = date("Y-m-d", strtotime("-1 day"));      
+        $fromDate->setDate( $oneDay );
+
+        $dates['FROM_DATE'] = $fromDate->toStringOracle();
+        $dates['TO_DATE'] = $toDate->toStringOracle();
+
+        return $dates;
     }
 ?>
