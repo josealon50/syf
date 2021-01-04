@@ -307,6 +307,9 @@
             if ( $row['STAT_CD'] == 'E' ){
                 $asfm->set_ERROR_DES(trim(substr(implode($row['EXCEPTIONS'], ","), 0, 180)));
             }
+            else{
+                $asfm->set_ERROR_DES('');
+            }
 
             $where = "WHERE DEL_DOC_NUM = '" . $row['DEL_DOC_NUM'] . "' "
                     ."AND CUST_CD = '" . $row['CUST_CD'] . "' "
