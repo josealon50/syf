@@ -2,6 +2,10 @@
     class ErrorMessages{
         const PROMO_CD_EXC_ERR='PROMO CODE ERROR'; 
         const INVALID_PROMO_CD_ERROR='INVALID PROMO CODE'; 
+        const CUST_ASP_NO_ACCT = 'ACCOUNT NOT FOUND'; 
+        const INVALID_AUTH_CODE_LENGTH = 'INVALID AUTH CODE'; 
+        const INVALID_AUTH_CODE = 'INVALID AUTH CODE'; 
+        const INVALID_ACCT_NUMBER_LENGTH = 'INVALID ACCOUNT NUMBER'; 
 
 
     }
