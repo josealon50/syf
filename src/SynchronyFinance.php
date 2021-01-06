@@ -488,7 +488,8 @@
                         "SO_ASP_AS_PROMO_CD" => $row['SO_ASP_AS_PROMO_CD'],
                         "SO_ASP_PROMO_CD" => $row['SO_ASP_PROMO_CD'],
                         "IDROW" => $row['IDROW'] ,
-                        "STAT_CD" => "P"
+                        "STAT_CD" => "P",
+                        "BATCH_NUM" => $validData
                     );
 
                     array_push( $update, $tmp );
@@ -528,7 +529,8 @@
                         "SO_ASP_PROMO_CD" => $row['SO_ASP_PROMO_CD'],
                         "IDROW" => $row['IDROW'] ,
                         "STAT_CD" => "E",
-                        "EXCEPTIONS" => $valid
+                        "EXCEPTIONS" => $valid,
+                        "BATCH_NUM" => ''
                     );
 
                     array_push( $update, $tmp );
