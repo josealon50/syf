@@ -303,7 +303,6 @@
     function updateASFMRecords( $asfm, $updt ){
         foreach ( $updt as $key => $row ){
             $asfm->set_STAT_CD($row['STAT_CD']);
-            $asfm->set_BATCH_NUM($row['BATCH_NUM']);
 
             if ( $row['STAT_CD'] == 'E' ){
                 $asfm->set_ERROR_DES(trim(substr(implode($row['EXCEPTIONS'], ","), 0, 180)));
