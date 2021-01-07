@@ -367,6 +367,9 @@
             $twoDays = date("Y-m-d", strtotime("-2 day"));      
             $fromDate->setDate( $twoDays );
 
+            $oneDay = date("Y-m-d", strtotime("-1 day"));      
+            $toDate->setDate( $oneDay );
+
             $dates['FROM_DATE'] = $fromDate->toStringOracle();
             $dates['TO_DATE'] = $toDate->toStringOracle();
 
@@ -376,6 +379,7 @@
 
         $oneDay = date("Y-m-d", strtotime("-1 day"));      
         $fromDate->setDate( $oneDay );
+        $toDate->setDate( $oneDay );
 
         $dates['FROM_DATE'] = $fromDate->toStringOracle();
         $dates['TO_DATE'] = $toDate->toStringOracle();
