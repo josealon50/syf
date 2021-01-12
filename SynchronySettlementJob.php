@@ -363,7 +363,7 @@
 
         //Check if today is Monday 
         if ( date('D') == 'Mon' ){
-            $twoDays = date("Y-m-d", strtotime("-2 day"));      
+            $twoDays = date("Y-m-d", strtotime("-3 day"));      
             $fromDate->setDate( $twoDays );
 
             $oneDay = date("Y-m-d", strtotime("-1 day"));      
