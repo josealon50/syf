@@ -585,6 +585,10 @@
             if( in_array( $row['SO_ASP_AS_PROMO_CD'],  $appconfig['synchrony']['INVALID_PROMO_CODES'] )){
                 array_push( $errors, ErrorMessages::INVALID_PROMO_CD_ERROR );
             }
+
+            if( in_array( $row['STORE_CD'],  $appconfig['synchrony']['EXCLUDE_STORE_CD'] )){
+                array_push( $errors, ErrorMessages::EXCLUDE_STORE_CD );
+            }
             
             return $errors; 
         
