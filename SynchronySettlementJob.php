@@ -1,10 +1,12 @@
 <?php
     include_once( '../config.php');
     include_once( './autoload.php' );
+    include_once( './libs/PHPMailer/PHPMailerAutoload.php' );
 
     set_include_path(get_include_path() . PATH_SEPARATOR . 'libs/phpseclib');
     include 'Net/SFTP.php';
     include 'Crypt/RSA.php';
+
 
     global $appconfig;
 
@@ -175,19 +177,33 @@
         $db = sessionConnect();
         $syf= new SynchronyFinance( $db );
 
+        /*
         if( !$syf->archive() ){
             fwrite( $mainReport, "Settlement File Decrypted was not archived\n");
         }
 
         if( processOut($syf) ){
+        */
             fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
-        }
+            //Email reports
+            $body = '';
+            $handle = fopen( 'out/email_body.txt', 'r');
+            while( !feof($handle) ){
+                $body = fgets( $handle );
+            }
+
+            $syf->email($body);
+       /* }
         else{
             fwrite( $mainReport, "Settlement File Upload Status: Unsuccesful\n");
             fwrite( $mainReport, "Settlement File Upload Error Code: " . $syf->getErrorCodeUpload() . "\n");
             fwrite( $mainReport, "Settlement File Upload Error Message: " . $syf->getErrorUploadMessage() . "\n");
             fwrite( $mainReport, "Please use the SYF upload module to reupload the settlement file\n" );
         }
+        */
+
+
+
     
     }
     else if ( $argv[1] == 5 ){
@@ -266,7 +282,11 @@
             fwrite($mainReport, "SYF Settlement: Error Building Exception file\n" );
         }
 
-        
+        //Build email file 
+        $email = buildEmailBody( $transactionsPerStore );
+        $emailBody = fopen( 'out/email_body.txt', 'w+');
+        fwrite( $emailBody, $email );        
+
 
         if ( $argv[2] == 1 ){
             updateASFMRecords( $asfm, $records );
@@ -275,6 +295,7 @@
         fclose( $exceptionReport );
         fclose( $settlement );
         fclose( $mainReport );
+        fclose( $emailBody );
 
     }
     else{
@@ -384,5 +405,21 @@
         $dates['TO_DATE'] = $toDate->toStringOracle();
 
         return $dates;
+    }
+
+    function buildEmailBody( $transactionsTotals ) {
+        global $appconfig;
+        $style = " style='border: 1px solid black;'";
+        $body = "<table" .$style . "><tr" . $style ."><th" . $style . ">Store Code</th><th" . $style . ">Total Transactions Processed</th><th" . $style . ">Total Amount Processed</th></tr>";
+        foreach( $transactionsTotals as $key => $value ){
+            $body .= "<tr" . $style . ">";
+            $body .= "<td" . $style . ">" . $key . "</td>"; 
+            $body .= "<td" . $style . ">" . $value['total_records'] . "</td>"; 
+            $body .= "<td" . $style . ">" . $value['amount'] . "</td>"; 
+            $body .= "</tr>"; 
+        }
+        $body .= "</table>";
+        return $body;
+
     }
 ?>

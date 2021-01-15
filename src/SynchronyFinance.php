@@ -509,7 +509,6 @@
                         $transactionsPerStore[$row['STORE_CD']]['total_records'] = 1;
                         $transactionsPerStore[$row['STORE_CD']]['amount'] = $row['ORD_TP_CD'] == 'SAL' ? number_format(0 + $row['AMT'], 2, '.', '') : number_format(0 - $row['AMT'], 2, '.', '');
                         $transactionsPerStore[$row['STORE_CD']]['records'] = $ticket;
-
                     }
                     $validData++;
                 }
@@ -625,27 +624,27 @@
 
         }
 
-        /*
-        public function email(){
+        public function email( $body ){
             global $appconfig;
-
+            echo $body;
             $mail = new PHPMailer;
             $mail->isSMTP();
-            $mail->Host = 'morexch.morfurniture.local';
-            $mail->Port = 25;
-            $mail->From     = 'misgroup@morfurniture.com';
-            $mail->FromName = 'Mailer';
-            $mail->addAddress(''); //should go to finance@morfurniture.com
+            $mail->Host = $appconfig['email']['HOST'];
+            $mail->Port = $appconfig['email']['PORT'];
+            $mail->From     =  $appconfig['email']['FROM'];
+            $mail->FromName = $appconfig['email']['FROM_NAME'];
+            $mail->addAddress($appconfig['email']['TO']); //should go to finance@morfurniture.com
             $mail->addReplyTo('');
             $mail->WordWrap = 50;
 
             $mail->addAttachment($appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_EXCEPTION_FILENAME']);
+            $mail->addAttachment($appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME']);
 
 
             $mail->isHTML(true);
-            $mail->Subject = "Synchrony Exception File";
-            $newline = '<br>';
-            $mail->Body    = '<b>You processed '.$processed.' items to FCRIN. Here are the exceptions!</b>'.$newline.$newline ;
+            $mail->Subject = $appconfig['email']['SUBJECT'];
+            
+            $mail->Body    = $body;
 
             if(!$mail->send()) {
                 echo 'Message could not be sent.'."\n";
@@ -658,7 +657,6 @@
 
 
         }
-         */
 
     }
 

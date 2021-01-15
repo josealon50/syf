@@ -370,6 +370,7 @@
         * @param 
         * @return 
         */
+        /*
         public function email( $appconfig, $totalSales, $totalSalesCount, $totalReturns, $totalReturnsCount, $totalAmount, $totalCount ) {
             global $appconfig;
 
@@ -421,6 +422,7 @@
                 return true;
             }
         }
+*/
 
 		/*------------------------------------------------------------------------
 		 *------------------------------- writeHeader ----------------------------
