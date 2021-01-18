@@ -8,7 +8,8 @@
 									  ."				  LEFT OUTER JOIN ASP_PROMO2TIER_DISC ON SO_ASP.PROMO_CD = ASP_PROMO2TIER_DISC.PROMO_CD"
 									  ."														 AND SYSDATE BETWEEN BEG_DT AND END_DT"	
 									  ."				  LEFT OUTER JOIN CUST_ASP ON CUST_ASP.CUST_CD = ASP_STORE_FORWARD.CUST_CD	AND CUST_ASP.AS_CD = 'SYF' "
-									  ."										      AND ASP_STORE_FORWARD.BNK_CRD_NUM = CUST_ASP.ACCT_CD";
+									  ."										      AND ASP_STORE_FORWARD.BNK_CRD_NUM = CUST_ASP.ACCT_CD"
+									  ."				  LEFT OUTER JOIN STORE2ASP ON STORE2ASP.STORE_CD = ASP_STORE_FORWARD.STORE_CD"; 
 
 			$this->dbcolumns        = array(
 													"CO_CD" 					=> 	"CO_CD"
@@ -36,6 +37,7 @@
 												,	"MANUAL"					=>	"MANUAL"
                                                 ,	"CREATE_DT_TIME"			=>	"CREATE_DT_TIME"
                                                 ,	"ACCT_NUM"			        =>	"ACCT_NUM"
+                                                ,	"MERCHANT_NUM"			    =>	"MERCHANT_NUM"
                                                 ,   "IDROW"                     =>  "IDROW"
 
 											);

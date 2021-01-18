@@ -588,6 +588,10 @@
             if( in_array( $row['STORE_CD'],  $appconfig['synchrony']['EXCLUDE_STORE_CD'] )){
                 array_push( $errors, ErrorMessages::EXCLUDE_STORE_CD );
             }
+
+            if( is_null($row['MERCHANT_NUM']) ){
+                array_push( $errors, ErrorMessages::NO_MERCHANT_NUM_ERROR );
+            }
             
             return $errors; 
         
@@ -626,7 +630,7 @@
 
         public function email( $body ){
             global $appconfig;
-            echo $body;
+
             $mail = new PHPMailer;
             $mail->isSMTP();
             $mail->Host = $appconfig['email']['HOST'];
