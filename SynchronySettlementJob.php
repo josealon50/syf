@@ -177,13 +177,11 @@
         $db = sessionConnect();
         $syf= new SynchronyFinance( $db );
 
-        /*
         if( !$syf->archive() ){
             fwrite( $mainReport, "Settlement File Decrypted was not archived\n");
         }
 
         if( processOut($syf) ){
-        */
             fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
             //Email reports
             $body = '';
@@ -193,17 +191,13 @@
             }
 
             $syf->email($body);
-       /* }
+        }
         else{
             fwrite( $mainReport, "Settlement File Upload Status: Unsuccesful\n");
             fwrite( $mainReport, "Settlement File Upload Error Code: " . $syf->getErrorCodeUpload() . "\n");
             fwrite( $mainReport, "Settlement File Upload Error Message: " . $syf->getErrorUploadMessage() . "\n");
             fwrite( $mainReport, "Please use the SYF upload module to reupload the settlement file\n" );
         }
-        */
-
-
-
     
     }
     else if ( $argv[1] == 5 ){
@@ -257,45 +251,54 @@
         //Generate settlement file 
         $totalAmountForBatch = 0;
         $totalRecordsForBatch = 0;
+        
+        if( count($transactionsPerStore) > 0 ){
+            fwrite($settlement, $syf->getBankHeader());
+            //Call to write bank and batch trailer
+            foreach( $transactionsPerStore as $key => $value ){
+                //Make sure to format the string correctly
+                $value['amount'] = number_format( $value['amount'], 2, '.', '' );
 
-        fwrite($settlement, $syf->getBankHeader());
-        //Call to write bank and batch trailer
-        foreach( $transactionsPerStore as $key => $value ){
-            //Make sure to format the string correctly
-            $value['amount'] = number_format( $value['amount'], 2, '.', '' );
+                //Sum totals for Bank trailer
+                $totalAmountForBatch += number_format( $value['amount'], 2, '.', '' );
+                $totalRecordsForBatch += $value['total_records']; 
 
-            //Sum totals for Bank trailer
-            $totalAmountForBatch += number_format( $value['amount'], 2, '.', '' );
-            $totalRecordsForBatch += $value['total_records']; 
+                //Writing to settlement file bank and batch header
+                fwrite($settlement, $syf->getBatchHeader($db, $key));
+                fwrite($settlement, $value['records']);
+                fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
+            }
 
-            //Writing to settlement file bank and batch header
-            fwrite($settlement, $syf->getBatchHeader($db, $key));
-            fwrite($settlement, $value['records']);
-            fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
-        }
+            fwrite($settlement, $syf->getBankTrailer( $totalRecordsForBatch, number_format($totalAmountForBatch, 2, '.', '') ));
 
-        fwrite($settlement, $syf->getBankTrailer( $totalRecordsForBatch, number_format($totalAmountForBatch, 2, '.', '') ));
+            //Build exception file
+            $error = buildExceptionFile( $exceptionReport, $records );
+            if ( $error ){
+                fwrite($mainReport, "SYF Settlement: Error Building Exception file\n" );
+            }
 
-        //Build exception file
-        $error = buildExceptionFile( $exceptionReport, $records );
-        if ( $error ){
-            fwrite($mainReport, "SYF Settlement: Error Building Exception file\n" );
-        }
+            if ( $argv[2] == 1 ){
+                if( !$syf->archive() ){
+                    fwrite( $mainReport, "Settlement File Decrypted was not archived\n");
+                }
 
-        //Build email file 
-        $email = buildEmailBody( $transactionsPerStore );
-        $emailBody = fopen( 'out/email_body.txt', 'w+');
-        fwrite( $emailBody, $email );        
-
-
-        if ( $argv[2] == 1 ){
-            updateASFMRecords( $asfm, $records );
+                if( processOut($syf) ){
+                    fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
+                    //Email reports
+                    $body = buildEmailBody( $transactionsPerStore );
+                    $syf->email($body);
+                }
+                else{
+                    fwrite( $mainReport, "Settlement File Upload Status: Unsuccesful\n");
+                }
+        
+                updateASFMRecords( $asfm, $records );
+            }
         }
 
         fclose( $exceptionReport );
         fclose( $settlement );
         fclose( $mainReport );
-        fclose( $emailBody );
 
     }
     else{
@@ -357,6 +360,7 @@
                 return false;
             }	
         }
+        return false;
     }
     function buildExceptionFile( $handle, $records ){
         fwrite( $handle, "DEL_DOC_NUM, CUST_CD, STORE_CD, AS_CD, AS_TRN_TP, AMT, AUTH_CD, PROMO, SYF_PROMO_CD, FINAL_DATE, EXCEPTIONS\n" );
@@ -409,16 +413,18 @@
 
     function buildEmailBody( $transactionsTotals ) {
         global $appconfig;
+        $total = 0;
         $style = " style='border: 1px solid black;'";
         $body = "<table" .$style . "><tr" . $style ."><th" . $style . ">Store Code</th><th" . $style . ">Total Transactions Processed</th><th" . $style . ">Total Amount Processed</th></tr>";
         foreach( $transactionsTotals as $key => $value ){
+            $total = number_format( $total + $value['amount'], 2, '.', '' );
             $body .= "<tr" . $style . ">";
             $body .= "<td" . $style . ">" . $key . "</td>"; 
             $body .= "<td" . $style . ">" . $value['total_records'] . "</td>"; 
             $body .= "<td" . $style . ">" . $value['amount'] . "</td>"; 
             $body .= "</tr>"; 
         }
-        $body .= "</table>";
+        $body .= "<tr" . $style . "><td" . $style . "></td><td" . $style . "></td><td" . $style . ">" . $total . "</td></tr></table>";
         return $body;
 
     }
