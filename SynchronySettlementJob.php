@@ -174,6 +174,7 @@
     //Ran in mode 2
     else if ( $argv[1] == 2 ){
         $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
+        $handle = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] .  $appconfig['synchrony']['SYF_STORE_TOTALS'], 'r' );
         $db = sessionConnect();
         $syf= new SynchronyFinance( $db );
 
@@ -183,13 +184,9 @@
 
         if( processOut($syf) ){
             fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
-            //Email reports
-            $body = '';
-            $handle = fopen( 'out/email_body.txt', 'r');
-            while( !feof($handle) ){
-                $body = fgets( $handle );
-            }
-
+            $today = new IDate();
+            $body = "Settlement has run succesful: " . $today->toString() . "\n\n\n";
+            $body .= buildEmailBody( $handle );
             $syf->email($body);
         }
         else{
@@ -198,6 +195,9 @@
             fwrite( $mainReport, "Settlement File Upload Error Message: " . $syf->getErrorUploadMessage() . "\n");
             fwrite( $mainReport, "Please use the SYF upload module to reupload the settlement file\n" );
         }
+
+        fclose($mainReport);
+        fclose($handle);
     
     }
     else if ( $argv[1] == 5 ){
@@ -278,21 +278,12 @@
             }
 
             if ( $argv[2] == 1 ){
-                if( !$syf->archive() ){
-                    fwrite( $mainReport, "Settlement File Decrypted was not archived\n");
-                }
-
-                if( processOut($syf) ){
-                    fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
-                    //Email reports
-                    $body = buildEmailBody( $transactionsPerStore );
-                    $syf->email($body);
-                }
-                else{
-                    fwrite( $mainReport, "Settlement File Upload Status: Unsuccesful\n");
-                }
-        
+                $handle = fopen( $appconfig['synchrony']['REPORT_SYF_SETTLE_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_STORE_TOTALS'], "w+" );
+                buildTotalReport( $handle, $transactionsPerStore );
                 updateASFMRecords( $asfm, $records );
+
+                fclose($handle);
+
             }
         }
 
@@ -360,7 +351,6 @@
                 return false;
             }	
         }
-        return false;
     }
     function buildExceptionFile( $handle, $records ){
         fwrite( $handle, "DEL_DOC_NUM, CUST_CD, STORE_CD, AS_CD, AS_TRN_TP, AMT, AUTH_CD, PROMO, SYF_PROMO_CD, FINAL_DATE, EXCEPTIONS\n" );
@@ -411,21 +401,41 @@
         return $dates;
     }
 
-    function buildEmailBody( $transactionsTotals ) {
+    function buildEmailBody( $handle ) {
         global $appconfig;
         $total = 0;
         $style = " style='border: 1px solid black;'";
         $body = "<table" .$style . "><tr" . $style ."><th" . $style . ">Store Code</th><th" . $style . ">Total Transactions Processed</th><th" . $style . ">Total Amount Processed</th></tr>";
-        foreach( $transactionsTotals as $key => $value ){
-            $total = number_format( $total + $value['amount'], 2, '.', '' );
+        $row = 0;
+        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+            $row++;
+            if($row == 1) continue;
+            $total = number_format( $total + $data['2'], 2, '.', '' );
             $body .= "<tr" . $style . ">";
-            $body .= "<td" . $style . ">" . $key . "</td>"; 
-            $body .= "<td" . $style . ">" . $value['total_records'] . "</td>"; 
-            $body .= "<td" . $style . ">" . $value['amount'] . "</td>"; 
+            $body .= "<td" . $style . ">" . $data[0]  . "</td>"; 
+            $body .= "<td" . $style . ">" . $data[1]   . "</td>"; 
+            $body .= "<td" . $style . ">" . $data['2']  . "</td>"; 
             $body .= "</tr>"; 
         }
-        $body .= "<tr" . $style . "><td" . $style . "></td><td" . $style . "></td><td" . $style . ">" . $total . "</td></tr></table>";
+        $body .= "</table>";
         return $body;
 
     }
+
+    function buildTotalReport( $handle, $transactionsPerStore ){
+        global $appconfig;
+
+        $total = 0;
+        fwrite( $handle,  "Store Code,Total Transactions Processed,Total Amount Processed\n" );
+        foreach( $transactionsPerStore as $key => $value ){
+            $total = number_format( $total + $value['amount'], 2, '.', '' );
+            $body = $key . "," . $value['total_records'] . "," . $value['amount'] . "\n"; 
+            fwrite( $handle, $body );
+            fwrite( $handle, ",," . $total . "\n" );
+            
+        }   
+
+        return;
+    }
+
 ?>

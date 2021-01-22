@@ -643,6 +643,7 @@
 
             $mail->addAttachment($appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_EXCEPTION_FILENAME']);
             $mail->addAttachment($appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME']);
+            $mail->addAttachment($appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_STORE_TOTALS']);
 
 
             $mail->isHTML(true);
