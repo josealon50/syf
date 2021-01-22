@@ -429,9 +429,8 @@
             $total = number_format( $total + $value['amount'], 2, '.', '' );
             $body = $key . "," . $value['total_records'] . "," . $value['amount'] . "\n"; 
             fwrite( $handle, $body );
-            fwrite( $handle, ",," . $total . "\n" );
-            
         }   
+        fwrite( $handle, ",," . $total . "\n" );
 
         return;
     }
