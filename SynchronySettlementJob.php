@@ -164,8 +164,6 @@
             fclose( $mainReport );
             fclose( $exceptionReport );
 
-            // Send email that the SETTL process has completed
-            //$syf->emailSettleCompleted();        
         }
         else if ( $argv[1] == 4 ){
             updateASFMRecords( $asfm, $recordsToUpdate );
@@ -185,7 +183,7 @@
         if( processOut($syf) ){
             fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
             $today = new IDate();
-            $body = "Settlement has run succesful: " . $today->toString() . "\n\n\n";
+            $body = "Settlement has ran succesful: " . $today->toString() . "\n\n\n";
             $body .= buildEmailBody( $handle );
             $syf->email($body);
         }
