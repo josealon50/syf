@@ -1,10 +1,12 @@
 <?php
     include_once( '../config.php');
     include_once( './autoload.php' );
+    include_once( './libs/PHPMailer/PHPMailerAutoload.php' );
 
     set_include_path(get_include_path() . PATH_SEPARATOR . 'libs/phpseclib');
     include 'Net/SFTP.php';
     include 'Crypt/RSA.php';
+
 
     global $appconfig;
 
@@ -162,8 +164,6 @@
             fclose( $mainReport );
             fclose( $exceptionReport );
 
-            // Send email that the SETTL process has completed
-            //$syf->emailSettleCompleted();        
         }
         else if ( $argv[1] == 4 ){
             updateASFMRecords( $asfm, $recordsToUpdate );
@@ -172,6 +172,7 @@
     //Ran in mode 2
     else if ( $argv[1] == 2 ){
         $mainReport = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], "w+" );
+        $handle = fopen( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] .  $appconfig['synchrony']['SYF_STORE_TOTALS'], 'r' );
         $db = sessionConnect();
         $syf= new SynchronyFinance( $db );
 
@@ -181,6 +182,10 @@
 
         if( processOut($syf) ){
             fwrite( $mainReport, "Settlement File Upload Status: Succesful\n");
+            $today = new IDate();
+            $body = "Settlement has ran succesful: " . $today->toString() . "\n\n\n";
+            $body .= buildEmailBody( $handle );
+            $syf->email($body);
         }
         else{
             fwrite( $mainReport, "Settlement File Upload Status: Unsuccesful\n");
@@ -188,6 +193,9 @@
             fwrite( $mainReport, "Settlement File Upload Error Message: " . $syf->getErrorUploadMessage() . "\n");
             fwrite( $mainReport, "Please use the SYF upload module to reupload the settlement file\n" );
         }
+
+        fclose($mainReport);
+        fclose($handle);
     
     }
     else if ( $argv[1] == 5 ){
@@ -241,35 +249,40 @@
         //Generate settlement file 
         $totalAmountForBatch = 0;
         $totalRecordsForBatch = 0;
-
-        fwrite($settlement, $syf->getBankHeader());
-        //Call to write bank and batch trailer
-        foreach( $transactionsPerStore as $key => $value ){
-            //Make sure to format the string correctly
-            $value['amount'] = number_format( $value['amount'], 2, '.', '' );
-
-            //Sum totals for Bank trailer
-            $totalAmountForBatch += number_format( $value['amount'], 2, '.', '' );
-            $totalRecordsForBatch += $value['total_records']; 
-
-            //Writing to settlement file bank and batch header
-            fwrite($settlement, $syf->getBatchHeader($db, $key));
-            fwrite($settlement, $value['records']);
-            fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
-        }
-
-        fwrite($settlement, $syf->getBankTrailer( $totalRecordsForBatch, number_format($totalAmountForBatch, 2, '.', '') ));
-
-        //Build exception file
-        $error = buildExceptionFile( $exceptionReport, $records );
-        if ( $error ){
-            fwrite($mainReport, "SYF Settlement: Error Building Exception file\n" );
-        }
-
         
+        if( count($transactionsPerStore) > 0 ){
+            fwrite($settlement, $syf->getBankHeader());
+            //Call to write bank and batch trailer
+            foreach( $transactionsPerStore as $key => $value ){
+                //Make sure to format the string correctly
+                $value['amount'] = number_format( $value['amount'], 2, '.', '' );
 
-        if ( $argv[2] == 1 ){
-            updateASFMRecords( $asfm, $records );
+                //Sum totals for Bank trailer
+                $totalAmountForBatch += number_format( $value['amount'], 2, '.', '' );
+                $totalRecordsForBatch += $value['total_records']; 
+
+                //Writing to settlement file bank and batch header
+                fwrite($settlement, $syf->getBatchHeader($db, $key));
+                fwrite($settlement, $value['records']);
+                fwrite($settlement, $syf->getBatchTrailer( $db, $key, $value['total_records'], $value['amount'] ));
+            }
+
+            fwrite($settlement, $syf->getBankTrailer( $totalRecordsForBatch, number_format($totalAmountForBatch, 2, '.', '') ));
+
+            //Build exception file
+            $error = buildExceptionFile( $exceptionReport, $records );
+            if ( $error ){
+                fwrite($mainReport, "SYF Settlement: Error Building Exception file\n" );
+            }
+
+            if ( $argv[2] == 1 ){
+                $handle = fopen( $appconfig['synchrony']['REPORT_SYF_SETTLE_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_STORE_TOTALS'], "w+" );
+                buildTotalReport( $handle, $transactionsPerStore );
+                updateASFMRecords( $asfm, $records );
+
+                fclose($handle);
+
+            }
         }
 
         fclose( $exceptionReport );
@@ -363,8 +376,11 @@
 
         //Check if today is Monday 
         if ( date('D') == 'Mon' ){
-            $twoDays = date("Y-m-d", strtotime("-2 day"));      
+            $twoDays = date("Y-m-d", strtotime("-3 day"));      
             $fromDate->setDate( $twoDays );
+
+            $oneDay = date("Y-m-d", strtotime("-1 day"));      
+            $toDate->setDate( $oneDay );
 
             $dates['FROM_DATE'] = $fromDate->toStringOracle();
             $dates['TO_DATE'] = $toDate->toStringOracle();
@@ -375,10 +391,48 @@
 
         $oneDay = date("Y-m-d", strtotime("-1 day"));      
         $fromDate->setDate( $oneDay );
+        $toDate->setDate( $oneDay );
 
         $dates['FROM_DATE'] = $fromDate->toStringOracle();
         $dates['TO_DATE'] = $toDate->toStringOracle();
 
         return $dates;
     }
+
+    function buildEmailBody( $handle ) {
+        global $appconfig;
+        $total = 0;
+        $style = " style='border: 1px solid black;'";
+        $body = "<table" .$style . "><tr" . $style ."><th" . $style . ">Store Code</th><th" . $style . ">Total Transactions Processed</th><th" . $style . ">Total Amount Processed</th></tr>";
+        $row = 0;
+        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+            $row++;
+            if($row == 1) continue;
+            $total = number_format( $total + $data['2'], 2, '.', '' );
+            $body .= "<tr" . $style . ">";
+            $body .= "<td" . $style . ">" . $data[0]  . "</td>"; 
+            $body .= "<td" . $style . ">" . $data[1]   . "</td>"; 
+            $body .= "<td" . $style . ">" . $data['2']  . "</td>"; 
+            $body .= "</tr>"; 
+        }
+        $body .= "</table>";
+        return $body;
+
+    }
+
+    function buildTotalReport( $handle, $transactionsPerStore ){
+        global $appconfig;
+
+        $total = 0;
+        fwrite( $handle,  "Store Code,Total Transactions Processed,Total Amount Processed\n" );
+        foreach( $transactionsPerStore as $key => $value ){
+            $total = number_format( $total + $value['amount'], 2, '.', '' );
+            $body = $key . "," . $value['total_records'] . "," . $value['amount'] . "\n"; 
+            fwrite( $handle, $body );
+        }   
+        fwrite( $handle, ",," . $total . "\n" );
+
+        return;
+    }
+
 ?>
