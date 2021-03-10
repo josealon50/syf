@@ -139,7 +139,7 @@
             $filler = " ";
 
             $negative = $totalDollarAmount < 0 ? '-' : '';
-            if ( is_float($totalDollarAmount) ){
+            if ( strpos($totalDollarAmount, '.' ) > 0 ){
                 $totalDollarAmount = str_replace( '.', '', $totalDollarAmount );
             }
             else{
@@ -191,7 +191,7 @@
             $filler = " ";
 
             $negative = $totalDollarAmount < 0 ? '-' : '';
-            if ( is_float($totalDollarAmount) ){
+            if ( strpos($totalDollarAmount, '.' ) > 0 ){
                 $totalDollarAmount = str_replace( '.', '', $totalDollarAmount );
             }
             else{
@@ -339,7 +339,7 @@
 	     *
 	     *
 	     */
-		public function writeTicketToSettleFile( $db, $row, $settle, $counter ){
+		public function generateSynchronyRecordAndAddenda( $db, $row, $settle, $counter ){
             global $appconfig;
 
             $record = $this->processRecord( $db, $row, $counter );
@@ -474,14 +474,13 @@
             //Main Driving loop 
             while( $row = $settle->next() ){
                 $str = "";
-                $valid = $this->validateData($db,$row);
+                $valid = $this->validateData($row);
                 
                 //REVOME THIS STATEMENT ONLY FOR TESTING
                 //$valid=[];
 
                 //Check if array contain any errors
                 if ( count($valid) === 0 ){
-                    //Check for split tickets in ASFM
                     if ( strcmp($row['AS_TRN_TP'], 'PAUTH') === 0 ){
                         $totalSales += $row['AMT'];
                     }
@@ -491,107 +490,191 @@
                     }
                     
                     //Update ASFM Record
-                    array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "P"));
+                    $tmp = array(   
+                        "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,
+                        "CUST_CD" => $row['CUST_CD'] ,
+                        "STORE_CD" => $row['STORE_CD'] ,
+                        "AS_CD" => $row["AS_CD"] ,
+                        "AS_TRN_TP" => $row['AS_TRN_TP'] ,
+                        "AMT" => $row['AMT'] ,
+                        "APP_CD" => $row['APP_CD'],
+                        "FINAL_DT" => $row['FINAL_DT'],
+                        "SO_ASP_AS_PROMO_CD" => $row['SO_ASP_AS_PROMO_CD'],
+                        "SO_ASP_PROMO_CD" => $row['SO_ASP_PROMO_CD'],
+                        "IDROW" => $row['IDROW'] ,
+                        "STAT_CD" => "P"
+                    );
+
+                    array_push( $update, $tmp );
+
+                    //Format number into money format
+                    $row['AMT'] = number_format( $row['AMT'], 2, '.', '' );
 
                     //Write to upload files
-                    $ticket = $this->writeTicketToSettleFile($db, $row, $settlement, $validData );
+                    $ticket = $this->generateSynchronyRecordAndAddenda($db, $row, $settlement, $validData );
 
                     //Keep track of transactions per store
                     if ( array_key_exists( $row['STORE_CD'], $transactionsPerStore )){
                         $transactionsPerStore[$row['STORE_CD']]['total_records'] += 1;
-                        $transactionsPerStore[$row['STORE_CD']]['amount'] = $row['ORD_TP_CD'] == 'SAL' ? $row['AMT'] + $transactionsPerStore[$row['STORE_CD']]['amount'] : $transactionsPerStore[$row['STORE_CD']]['amount'] - $row['AMT'];
+                        $transactionsPerStore[$row['STORE_CD']]['amount'] = $row['ORD_TP_CD'] == 'SAL' ? number_format($row['AMT'] + $transactionsPerStore[$row['STORE_CD']]['amount'], 2, '.', '') : number_format( $transactionsPerStore[$row['STORE_CD']]['amount'] - $row['AMT'], 2, '.', '');
                         $transactionsPerStore[$row['STORE_CD']]['records'] .= $ticket;
                     }
                     else{
                         $transactionsPerStore[$row['STORE_CD']]['total_records'] = 1;
-                        $transactionsPerStore[$row['STORE_CD']]['amount'] = $row['ORD_TP_CD'] == 'SAL' ? 0 + $row['AMT'] : 0 - $row['AMT'];
+                        $transactionsPerStore[$row['STORE_CD']]['amount'] = $row['ORD_TP_CD'] == 'SAL' ? number_format(0 + $row['AMT'], 2, '.', '') : number_format(0 - $row['AMT'], 2, '.', '');
                         $transactionsPerStore[$row['STORE_CD']]['records'] = $ticket;
-
                     }
                     $validData++;
                 }
                 else{
-                    if ( array_key_exists('R', $valid) ){
-                        if ( count($valid) > 1 ){                        
-                            if ( strlen($row['DEL_DOC_NUM']) > 11 || strcmp($row['AS_TRN_TP'], 'RET') === 0 ){
-                                //Check if return ticket have a sale side attatch to it
-                                if ( array_search( substr($row['DEL_DOC_NUM'], 0, 11), $delDocWrittens ) !== FALSE ) {
-                                    continue;
-                                }
-                                else{ 
-                                    $str = $this->getSaleSide( $db, $row );
+                    //Update ASFM Record
+                    $tmp = array(   
+                        "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,
+                        "CUST_CD" => $row['CUST_CD'] ,
+                        "STORE_CD" => $row['STORE_CD'] ,
+                        "AS_CD" => $row["AS_CD"] ,
+                        "AS_TRN_TP" => $row['AS_TRN_TP'] ,
+                        "AMT" => $row['AMT'] ,
+                        "APP_CD" => $row['APP_CD'],
+                        "FINAL_DT" => $row['FINAL_DT'],
+                        "SO_ASP_AS_PROMO_CD" => $row['SO_ASP_AS_PROMO_CD'],
+                        "SO_ASP_PROMO_CD" => $row['SO_ASP_PROMO_CD'],
+                        "IDROW" => $row['IDROW'] ,
+                        "STAT_CD" => "E",
+                        "EXCEPTIONS" => $valid
+                    );
 
-                                    if ( strcmp( $str,"") === 0 ){
-                                        $simpleRet .= $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['ORD_TP_CD'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                                        array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                                    }
-                                    else{
-                                        $exchanges .= $str;
-                                        $exchanges .=  $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                                        array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                                    }
-                                }
-                                continue;
-
-                            }
-                            $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
-
-                            array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E"));
-
-                            continue;
-                        }
-                        else{
-                            //Check if return ticket have a sale side attatch to it
-                            if ( array_search( substr($row['DEL_DOC_NUM'], 0, 11), $delDocWrittens ) !== FALSE ) {
-                                continue;
-                            }
-                            else{ 
-                                $str = $this->getSaleSide( $db, $row );
-                                if ( strcmp( $str,"") === 0 ){
-                                    $simpleRet .= $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['ORD_TP_CD'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                                    array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                                }
-                                else{
-                                    $exchanges .= $str;
-                                    $exchanges .=  $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                                    array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                                }
-                            }
-                            continue;   
-                        }
-                    }                
-                    if ( array_key_exists( 'SPL', $valid )){
-                        //Check if return ticket have a sale side attatch to it
-                        if ( array_search( substr($row['DEL_DOC_NUM'], 0, 11), $delDocWrittens ) !== FALSE ) {
-                            continue;
-                        }
-                        else{ 
-                            $str = $this->getCreditSide( $db, $row );
-
-                            $exchanges .= $str;
-                            $exchanges .=  $this->writeReturn( $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['AMT'],$row['FINAL_DT'],$row['STATUS'], $valid );
-                            array_push( $delDocWrittens, substr($row['DEL_DOC_NUM'], 0, 11) ); 
-
-                            if ( count($valid) > 1 ){
-                                $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
-
-                                array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E"));
-                            }
-                        }
-                        continue;   
-                    }
-
-                    $exceptions .= $this->writeExceptions( $row['STORE_CD'], $row['DEL_DOC_NUM'], $row['CUST_CD'], $row['AS_TRN_TP'], $row['APP_CD'], $row['AMT'], $row['SO_ASP_PROMO_CD'], $row['FINAL_DT'], $valid );
-
-                    array_push( $update, array( "DEL_DOC_NUM" => $row['DEL_DOC_NUM'] ,"CUST_CD" => $row['CUST_CD'] ,"STORE_CD" => $row['STORE_CD'] ,"AS_CD" => $row["AS_CD"] ,"AS_TRN_TP" => $row['AS_TRN_TP'] ,"IDROW" => $row['IDROW'] ,"STAT_CD" => "E"));
-                }
+                    array_push( $update, $tmp );
                     
+                }
             }
             return $update;
+        }
+
+		/*------------------------------------------------------------------------
+		 *------------------------------ validateData ----------------------------
+		 *------------------------------------------------------------------------
+	     * Method validates each ticket in ASFM. It till check for common errors 
+	     * between SYF and Genesis. 
+	     *
+	     * @param $db Object: IDBT Resource Connection Object to Oracle.
+	     *		  $row Array: Contains all ticket information.
+	     *
+	     * @return Array: Contains all error messages for that ticket. If array it 
+	     *				  is empty it means that there is no error for that ticket.
+	     *
+	     *
+	     */
+        public function validateData($row){ 
+            global $appconfig;
+
+            $errors =[];
+            if( !is_null($row['ACCT_NUM']) ){
+                //Check if acct number is lees than 16 digit
+                $decryption = openssl_decrypt( $row['ACCT_NUM'], $appconfig['ciphering'], $appconfig['encryption_key'], $appconfig['options'], $appconfig['encryption_iv']);
+                if ( strlen($decryption) !== 16 ) {
+                    array_push( $errors, ErrorMessages::INVALID_ACCT_NUMBER_LENGTH );
+                } 
+            }
+            else{
+                array_push( $errors, ErrorMessages::CUST_ASP_NO_ACCT );
+            }
+
+            if ( !is_null($row['APP_CD']) ){
+                if ( strlen($row['APP_CD']) !== 6 ){
+                    array_push( $errors, ErrorMessages::INVALID_AUTH_CODE_LENGTH );
+                } 
+                //Check if auth code
+                if ( !is_numeric($row['APP_CD']) ) {
+                    array_push( $errors, ErrorMessages::INVALID_AUTH_CODE );
+                }
+                
+            }
+            else{
+                array_push( $errors, ErrorMessages::INVALID_AUTH_CODE );
+
+            }
+
+            if( in_array( $row['SO_ASP_AS_PROMO_CD'],  $appconfig['synchrony']['INVALID_PROMO_CODES'] )){
+                array_push( $errors, ErrorMessages::INVALID_PROMO_CD_ERROR );
+            }
+
+            if( in_array( $row['STORE_CD'],  $appconfig['synchrony']['EXCLUDE_STORE_CD'] )){
+                array_push( $errors, ErrorMessages::EXCLUDE_STORE_CD );
+            }
+
+            if( is_null($row['MERCHANT_NUM']) ){
+                array_push( $errors, ErrorMessages::NO_MERCHANT_NUM_ERROR );
+            }
+            
+            return $errors; 
+        
+        }
+
+		/*------------------------------------------------------------------------
+		 *------------------------------ archive ---------------------------------
+		 *------------------------------------------------------------------------
+         * Function will archive most recent settlement file
+	     *
+	     * @param 
+         * @return Boolean: 
+         *          TRUE: No errors.
+         *          FALSE: Error archiving 
+         *
+	     *
+	     */
+        public function archive(){
+            global $appconfig;
+            try{
+                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "/" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . "/" . $appconfig['synchrony']['SYF_SETTLE_FILENAME_DEC'] . "." . date("YmdHis") );
+
+                //Archive older report file and timestamp it 
+                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "/" . $appconfig['synchrony']['SYF_REPORT_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . "/" .  $appconfig['synchrony']['SYF_REPORT_FILENAME'] . "." . date("YmdHis") );
+
+                //Archive older encrypted file and timestamp it 
+                $error = copy( $appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "/" . $appconfig['synchrony']['SYF_SETTLE_FILENAME'], $appconfig['synchrony']['SYF_ARCHIVE_PATH'] . "/" .  $appconfig['synchrony']['SYF_SETTLE_FILENAME'] . "." . date("YmdHis") );
+
+                return $error; 
+            }
+            catch( Exception $e ){
+                return false;
+            }
+
+        }
+
+        public function email( $body ){
+            global $appconfig;
+
+            $mail = new PHPMailer;
+            $mail->isSMTP();
+            $mail->Host = $appconfig['email']['HOST'];
+            $mail->Port = $appconfig['email']['PORT'];
+            $mail->From     =  $appconfig['email']['FROM'];
+            $mail->FromName = $appconfig['email']['FROM_NAME'];
+            $mail->addAddress($appconfig['email']['TO']); //should go to finance@morfurniture.com
+            $mail->addReplyTo('');
+            $mail->WordWrap = 50;
+
+            $mail->addAttachment($appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_EXCEPTION_FILENAME']);
+            $mail->addAttachment($appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_REPORT_FILENAME']);
+            $mail->addAttachment($appconfig['synchrony']['REPORT_SYF_REPORT_OUT_DIR'] . "" . $appconfig['synchrony']['SYF_STORE_TOTALS']);
+
+
+            $mail->isHTML(true);
+            $mail->Subject = $appconfig['email']['SUBJECT'];
+            
+            $mail->Body    = $body;
+
+            if(!$mail->send()) {
+                echo 'Message could not be sent.'."\n";
+                echo 'Mailer Error: ' . $mail->ErrorInfo;
+                return -1;
+            } else {
+                echo 'Message has been sent'."\n\n";
+            }
+            return true;
+
+
         }
 
     }

@@ -18,25 +18,6 @@
 		}
 
 		/*------------------------------------------------------------------------
-		 *------------------------------ validateData ----------------------------
-		 *------------------------------------------------------------------------
-	     * Method validates each ticket in ASFM. It till check for common errors 
-	     * between SYF and Genesis. 
-	     *
-	     * @param $db Object: IDBT Resource Connection Object to Oracle.
-	     *		  $row Array: Contains all ticket information.
-	     *
-	     * @return Array: Contains all error messages for that ticket. If array it 
-	     *				  is empty it means that there is no error for that ticket.
-	     *
-	     *
-	     */
-		public function validateData( $db, &$row ){
-			$errors = array();
-
-			return $errors;
-		}
-		/*------------------------------------------------------------------------
 		 *-------------------------- emailSettleCompleted ------------------------
 		 *------------------------------------------------------------------------
 	     * Method will send and attaced to an email settlement file 
@@ -389,6 +370,7 @@
         * @param 
         * @return 
         */
+        /*
         public function email( $appconfig, $totalSales, $totalSalesCount, $totalReturns, $totalReturnsCount, $totalAmount, $totalCount ) {
             global $appconfig;
 
@@ -440,6 +422,7 @@
                 return true;
             }
         }
+*/
 
 		/*------------------------------------------------------------------------
 		 *------------------------------- writeHeader ----------------------------
@@ -741,6 +724,43 @@
 			$exc .= "\n";
 			return $exc;
         }
+
+        /*------------------------------------------------------------------------
+		 *---------------------------- writeExceptions ---------------------------
+		 *------------------------------------------------------------------------
+	     * Routine writes exceptions to the exception file
+	     *
+	     * @param
+	     *		delDoc: Delivery Document Number
+	     *		custCode: Customer Code
+	     *		asTrnTp: Transaction type code
+	     *		amt: amount
+	     *		finalDate: Finalization Date
+	     *		status: Status of ticket
+	     *		exceptions: (Array) : Contains all exceptions for that Delivery
+	     *							  Document Number
+	     * @return boolean:
+		 *		  TRUE: Totals written to the file.
+		 *		  FALSE: Totals were not written to the file.
+	     *
+	     *
+	     */
+		public function writeExceptions( $storeCode, $delDoc, $custCode, $asTrnTp, $appCode, $amt, $promo, $finalDate, $exceptions ){
+			$exc = $storeCode.",".$delDoc.",".$custCode.",".$asTrnTp.",".$appCode.",".$amt.",".$promo.",".$finalDate;
+
+			$i = 0;
+			foreach( $exceptions as $key => $value ){
+				$exc .=  "," . $value;
+			}
+
+			$exc .= "\n";
+
+			//fwrite($this->exceptionPtr, $exc);
+
+			return $exc;
+
+		}
+
         //---------------------------------------------------------------------------
         //------------------------- writeAgingTransactions --------------------------
         //---------------------------------------------------------------------------
@@ -839,7 +859,8 @@
          */
         public function validateRecords( $db, $asfm, $settle, &$totalSales, &$totalReturns, &$exceptions, &$simpleRet, &$exchanges, &$validData, &$delDocWrittens, $settlement, &$transactionsPerStore){
             global $appconfig;
-            return null;
+
+            return false;
         }
 
 		/*------------------------------------------------------------------------
@@ -961,11 +982,5 @@
             return $str;
         }
     }
-
-
-
-
-
-
 
 ?>
