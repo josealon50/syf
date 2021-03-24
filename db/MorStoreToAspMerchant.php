@@ -71,7 +71,7 @@ class MorStoreToAspMerchant extends IDBTable {
         }
 
         if($row = $this->next()){
-            return $this;
+            return $this->get_STORE_CD();
         } 
         return NULL;
 
