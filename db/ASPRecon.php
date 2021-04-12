@@ -34,6 +34,18 @@ class ASPRecon extends IDBTable {
 		$this->dbcolumns_date  	= array(  'CREATE_DT', 'PROCESS_DT' );
 		$this->setAutoIDColumn("ID");
 	}
+    public function isRecordProcessed( $record ){
+        global $appconfig;
+
+        $where = "WHERE AS_CD = '" . $record['AS_CD'] . "' AND AMT = '" . $record['AMT'] . "' AND AS_STORE_CD = '" . $record['STORE_CD'] . "' AND IVC_CD = '" . $record['IVC_CD'] . "' ";
+
+        $result = $this->query($where);
+        if( $result == 0 ){
+            return true;
+        }
+
+        return false;
+    }
 }
 
 ?>

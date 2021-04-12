@@ -10,144 +10,219 @@
 
         global $appconfig, $logger;
 
+	    $logger = new ILog($appconfig['username'], "recon" . date('ymdhms') . ".log", $appconfig['log_folder'], $appconfig['log_priority']);
         $mor = new Morcommon();
         $db = $mor->standAloneAppConnect();
         $syf = new SynchronyFinance( $db );
 
+        $dates = getDatesFromRange( $argv[1], $argv[2] );
 
         //Download file from Synchrony
-        $files = $syf->download();
         $logger->debug( "Synchrony Reconciliation: Starting proces " . date("Y-m-d") );
-        if ( count($files) > 0 ){
-            foreach( $files as $file ){
-                $logger->debug( "Synchrony Reconciliation: Processing " . $file );
-                if ( $syf->decrypt($file) ){
-                    $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Succesful ");
-                    $handle = fopen( $appconfig['synchrony']['SYF_RECON_IN'] . $appconfig['synchrony']['SYF_RECON_FILENAME'], 'r' ) or die ( "Unable to open recon file" );
-                    $records = $syf->parseSYFRecon( $handle );
+        foreach( $dates as $date ){
+            //$files = $syf->download( $date->format("Ymd") );
+            $files = [ 'recon.20210310090019.txt' ];
+            if ( count($files) > 0 ){
+                foreach( $files as $file ){
+                    $logger->debug( "Synchrony Reconciliation: Processing " . $file );
+                    if ( 1 ){ // $syf->decrypt($file) ){
+                        $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Succesful ");
+                        $handle = fopen( $appconfig['synchrony']['SYF_RECON_IN'] . $file, 'r' ) or die ( $logger->debug("Synchrony Reconciliation: Unable to open recon file: " . $file) );
+                        $records = $syf->parseSYFRecon( $handle );
 
-                    if( count($records) == 0 ){
-                        $logger->debug( "Synchrony Reconciliation: No records to process");
-                        //Nothing to do 
-                        exit();
-                    }
+                        if( count($records) == 0 ){
+                            $logger->debug( "Synchrony Reconciliation: No records to process");
+                            continue;
+                        }
 
-                    //Insert records into ASP_RECON
-                    $aspRecon = new ASPRecon($db);
+                        //Insert records into ASP_RECON
+                        $aspRecon = new ASPRecon($db);
 
-                    if ( $argv[1] == 3 ) {
-                        $logger->debug( "Synchrony Reconciliation: Processing records " . $count($records) );
+                        $stores = [];
+                        $errors = [];
+                        $total = 0;
+                        $logger->debug( "Synchrony Reconciliation: Processing records " . count($records) );
                         foreach( $records as $record ){
-                            foreach( $record as $key => $value ){
-                                $set = "set_" . $key;
-                                $aspRecon->$set( $value );
+                            $acct = encryptAcct( $record['ACCT_NUM'] );
+
+                            //Query record on MOR ASP history table 
+                            $syfSo = new SyfSalesOrder($db);
+                            $syfSo = $syfSo->getSyfSalesOrder( $record['AMT'], $record['ORIGIN_STORE'], $record['PROMO_CD'], $acct );
+
+                            if( is_null($syfSo) ){
+                                $logger->debug( "Synchrony Reconciliation: History transaction Record not found" );
+                                $logger->debug( print_r($record, 1) );
+                                array_push( $errors, $record );
                             }
-                            $error = $aspRecon->insert( true, false );
-                            if( !$error ){
-                                echo $aspRecon->getError() . "\n";
-                                exit();
+                            else{
+                                $record['DEL_DOC_NUM'] = $morHist->get_DEL_DOC_NUM();
+                                //Check if records have been processed
+                                $processed = $aspRecon->isRecordProcessed( $record );
+
+                                foreach( $record as $key => $value ){
+                                    $set = "set_" . $key;
+                                    $aspRecon->$set( $value );
+                                }
+                                $error = '';
+                                if ( $processed ){
+                                    $logger->debug( "Synchrony Reconciliation: Record has been processed: " . print_r( $record) );
+                                    $error = 'RECORD HAS BEEN PROCESSED'; 
+                                }
+                                if( $record['DES'] == 'CREDIT' ){
+                                    $logger->debug( "Synchrony Reconciliation:  Credit Record found" );
+                                    if ( strlen($error) > 0 ){
+                                        $error .= ',';
+                                    }
+                                    $error .= 'CREDIT RECORD FOUND';
+                                }
+                                $total = floatval($total) + floatval($stores[$record['ORIGIN_STORE']]);
+                                if ( !isset($stores[$record['ORIGIN_STORE']]) ){
+                                    $stores[$record['ORIGIN_STORE']]['total'] = $record['AMT'];
+                                    $stores[$record['ORIGIN_STORE']]['total_records'] = 1;
+                                }
+                                else{
+                                    $stores[$record['ORIGIN_STORE']]['total'] = floatval( $store[$record['ORIGIN_STORE']] ) + floatval($record['AMT']);
+                                    $stores[$record['ORIGIN_STORE']]['total_records'] = $stores[$record['ORIGIN_STORE']]['total_records'] + 1;
+                                }
+
+                                $aspRecon->set_EXCEPTION($error); 
+                                $error = $aspRecon->insert( true, false );
+                                if( !$error ){
+                                    $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
+                                }
+                            }
+
+                            //After prepping data insert into AR_TRN
+                            $aspRecon = new ASPRecon($db);
+                            $result = $aspRecon->query("WHERE STATUS = 'H' and DES = 'PURCHASE'");
+
+                            if( $result <  0 ){
+                                $logger->debug("Synchrony Reconciliation: Error query on ASP_RECON" );
+                            }
+
+                            while ($aspRecon->next()) {
+                                $artrn = new ArTrn($db);
+                                $artrn->set_CO_CD('BSS');
+                                $artrn->set_CUST_CD('SYF');
+                                $artrn->set_MOP_CD('CS');
+                                $artrn->set_EMP_CD_CSHR('92388');
+                                $artrn->set_EMP_CD_OP('92388');
+                                $artrn->set_ORIGIN_STORE($aspRecon->get_ORIGIN_STORE());
+                                $artrn->set_CSH_DWR_CD('00');
+                                $artrn->set_TRN_TP_CD('PMT');
+                                
+                                //converts the 2nd argument into the POST_DT
+                                $prepost_dt = date_create_from_format('m-d-y', $date);
+                                $post_dt = date_format($prepost_dt, 'd-m-y');
+                                $artrn->set_POST_DT($post_dt);
+
+                                //date the FCRIN file was created on SYF end
+                                $artrn->set_CREATE_DT($aspRecon->get_CREATE_DT('d-M-Y'));
+                                $artrn->set_STAT_CD('T');
+                                $artrn->set_AR_TP('O');
+                                $artrn->set_IVC_CD($aspRecon->get_IVC_CD());
+                                $artrn->set_PMT_STORE('00');
+                                $artrn->set_ORIGIN_CD('FCRIN');
+                                $artrn->set_DOC_SEQ_NUM(genDocNum($db, '00'));
+                                $insertCheck = $artrn->artrn();
+                                if ($insertCheck === false) {
+                                    return false;
+                                } else {
+                                    //UPDATES THE RECORD TO 'P' from 'H' if the insert is successful
+                                    $update->aspRecon('where ID = ' .$aspRecon->get_ID());
+                                    if ($update->next()) {
+                                        $update->set_STATUS('P');
+                                        $update->update('where ID = ' .$aspRecon->get_ID(), false);
+                                    }
+                                }
                             }
                         }
-                    }
-                        
-                    if( $argv[1] == 3 ){
-                        $errors = autoFCRIN( $db, date('d-M-Y') );
-                    }
 
-                    if ( !$errors && $argv[1] == 3 ){
-                        sendEmail( date('m-D-Y') );
-                        
-                    }
-                    $logger->debug( "Synchrony Reconciliation: Archiving " . $file );
-                    if( !$syf->moveReconFiles( $file, $appconfig['synchrony']['SYF_RECON_IN'], $appconfig['synchrony']['SYF_RECON_ARCHIVE']) ){
-                        $logger->debug( "Synchrony Reconciliation: Error archiving " . $file );
+                        $logger->debug( "Synchrony Reconciliation: Archiving " . $file );
+                        if( !$copy($appconfig['synchrony']['SYF_RECON_IN'] . $file, $appconfig['synchrony']['SYF_RECON_ARCHIVE'] . $file . date('Ymd')) ){
+                            $logger->debug( "Synchrony Reconciliation: Error archiving " . $file );
+                        }
+                        else{
+                            $logger->debug( "Synchrony Reconciliation: Archiving " . $file . " Succesful ");
+                            unlink( $file );
+                        }
                     }
                     else{
-                        $logger->debug( "Synchrony Reconciliation: Archiving " . $file . " Succesful ");
-                        //Delete file 
-                        unlink( $file );
+                        $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Failed ");
                     }
+                }
+			}
 
+            $logger->debug( "Synchrony Reconciliation: Total by Stores " );
+            $logger->debug( print_r($stores, 1) );
+            $logger->debug( "Synchrony Reconciliation: Total " . number_format($total, 2, '.', '') );
+            $logger->debug( $total );
 
-                }
-                else{
-                    $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Failed ");
-                }
-                else{
-                    //Error downloading file
-                    exit();
-                }
+            //Send Email 
+            $style = " style='border: 1px solid black;'";
+            $body = "<table" .$style . "><tr" . $style ."><th" . $style . ">Store Code</th><th" . $style . ">Total Transactions Processed</th><th" . $style . ">Total Amount Processed</th></tr>";
+            foreach( $stores as $key => $store ){
+                $body .= "<tr" . $style . ">";
+                $body .= "<td" . $style . ">" . $key  . "</td>"; 
+                $body .= "<td" . $style . ">" . $store['total_records']   . "</td>"; 
+                $body .= "<td" . $style . ">" . $store['total']  . "</td>"; 
+                $body .= "</tr>"; 
             }
+            $body .= "</table>";
+
+            if ( !emailRecon( $body ) ){
+               $logger->debug("Synchrony Reconciliation: Email did not send" ); 
+            }
+
         }
 
+        function emailRecon( $body ){
+            global $appconfig;
 
-        function autoFCRIN( $db, $processDate ){
-            $query = new ASPReconView($db, 'T', 'SYF');
-            $update = new ASPRecon($db);
+            $mail = new PHPMailer;
+            $mail->isSMTP();
+            $mail->Host = $appconfig['email']['HOST'];
+            $mail->Port = $appconfig['email']['PORT'];
+            $mail->From     =  $appconfig['email']['FROM'];
+            $mail->FromName = $appconfig['email']['FROM_NAME'];
+            $mail->addAddress($appconfig['email']['TO']); //should go to finance@morfurniture.com
+            $mail->addReplyTo('');
+            $mail->WordWrap = 50;
 
-            // This will collect an array of discounts by invoice which we can use to apply to the payment later
-            $rec_discounts = new ASPRecon($db);
-            $rec_discounts->query("where DES = 'ACQUISITION' and RECORD_TYPE = 'T' and STATUS = 'H'");
-            $discounts = array();
+            $mail->isHTML(true);
+            $mail->Subject = $appconfig['email']['SUBJECT'];
+            
+            $mail->Body    = $body;
 
-            while ($rec_discounts->next()) {
-                $discounts[$rec_discounts->get_IVC_CD()] = $rec_discounts->get_AMT();
-            }
-
-            //select * from asp_recon join (select ivc_cd from asp_recon group by IVC_CD having count(IVC_CD) = 2) a2 on asp_recon.ivc_cd = a2.ivc_cd AND record_type = 'T' WHERE EXISTS (select null from AR_TRN where IVC_CD = asp_recon.ivc_cd) and status = 'H' and (DES = 'PURCHASE' or DES = 'ACQUISITION');
-            $query->query(" and STATUS = 'H' and (DES = 'PURCHASE' or DES = 'ACQUISITION')");
-
-            while ($query->next()) {
-                $artrn = new ArTrn($db);
-                $artrn->set_CO_CD('BSS');
-                $artrn->set_CUST_CD('SYF');
-                $artrn->set_MOP_CD('CS');
-                $artrn->set_EMP_CD_CSHR('92388');
-                $artrn->set_EMP_CD_OP('92388');
-                $artrn->set_ORIGIN_STORE($query->get_ORIGIN_STORE());
-                $artrn->set_CSH_DWR_CD('00');
-
-                //IF STATEMENT TO DETERMINE THE TRN_TP_CD AND UPDATE THE AMT TO REFLECT PAYMENT DISCOUNT
-                if (strpos($query->get_DES(), 'PURCHASE') !== false) {
-                    $artrn->set_TRN_TP_CD('PMT');
-                    $artrn->set_AMT($query->get_AMT() - $discounts[$query->get_IVC_CD()]);
-                } elseif (strpos($query->get_DES(), 'ACQUISITION') !== false) {
-                    $artrn->set_TRN_TP_CD('FDC');
-                    $artrn->set_AMT($query->get_AMT());
-                } else {
-                    $artrn->set_TRN_TP_CD(NULL);
-                    $artrn->set_AMT($query->get_AMT());
-                }
-                
-                //converts the 2nd argument into the POST_DT
-                $argdate = $argv[2];
-                $prepost_dt = date_create_from_format('m-d-y', $argdate);
-                $post_dt = date_format($prepost_dt, 'd-m-y');
-                $artrn->set_POST_DT($POST_DT);
-
-                //date the FCRIN file was created on TD end
-                $artrn->set_CREATE_DT($query->get_CREATE_DT('d-M-Y'));
-                $artrn->set_STAT_CD('T');
-                $artrn->set_AR_TP('O');
-                $artrn->set_IVC_CD($query->get_IVC_CD());
-                $artrn->set_PMT_STORE('00');
-                $artrn->set_ORIGIN_CD('FCRIN');
-                $artrn->set_DOC_SEQ_NUM(genDocNum($db, '00'));
-                $insertCheck = $artrn->artrn();
-                if ($insertCheck === false) {
-                    return false;
-                } else {
-                    //UPDATES THE RECORD TO 'P' from 'H' if the insert is successful
-                    $update->query('where ID = ' .$query->get_ID());
-                    if ($update->next()) {
-                        $update->set_STATUS('P');
-                        $update->update('where ID = ' .$query->get_ID(), false);
-                    }
-                }
+            if(!$mail->send()) {
+                echo 'Message could not be sent.'."\n";
+                echo 'Mailer Error: ' . $mail->ErrorInfo;
+                return -1;
+            } else {
+                echo 'Message has been sent'."\n\n";
             }
             return true;
+
+
         }
-    
+
+        function getDatesFromRange( $from, $to ){
+            global $appconfig;
+
+            $period = new DatePeriod( new DateTime($from), new DateInterval('P1D'), new DateTime($to) );
+            return iterator_to_array($period);
+
+
+        }
+
+        function encryptAcct( $acctNum ) {
+            global $appconfig;
+
+            //Encrypt Account number
+            $encryption = openssl_encrypt($acctNum, $appconfig['ciphering'], $appconfig['encryption_key'], $appconfig['options'], $appconfig['encryption_iv']);
+
+            return $encryption;
+        }
 
 
 

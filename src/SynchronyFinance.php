@@ -358,7 +358,7 @@
          *              
 	     *
 	     */
-		public function download(){
+		public function download( $date ){
             global $appconfig;
 
             $sftp = new Net_SFTP($appconfig['synchrony']['SFTP_HOST'], $appconfig['synchrony']['SFTP_PORT']);
@@ -372,7 +372,6 @@
             }
 
             $sftp->chdir($appconfig['synchrony']['SFTP_OUTBOUND_FOLDER']);
-            $date = date('Ymd');
             $files = [];
             foreach( $sftp->nlist() as $value ){
                 if( strpos( $value, $date ) > 0 ){
@@ -641,9 +640,9 @@
         
         }
 
-		/*------------------------------------------------------------------------
-		 *------------------------------ archive ---------------------------------
-		 *------------------------------------------------------------------------
+        /*------------------------------------------------------------------------
+         *------------------------------ archive ---------------------------------
+         *------------------------------------------------------------------------
          * Function will archive most recent settlement file
 	     *
 	     * @param 
@@ -716,20 +715,25 @@
 
             while(($data = fgets($handle)) !== FALSE){
                 $row = explode( "|", $data );
-                $tmp = [ 
-                          "STORE_CD" => $merchant->getStoreCDByMerchantNumber( $row[4], 'SYF' ),
-                          "MERCHANT_NUM" => $row[4],
-                          "CREATE_DT" => date('d-M-Y'),
-                          "AS_CD" => "SYF",
-                          "CREDIT_OR_DEBIT" => $row[7] == '253' ? 'D' : 'C',
-                          "AMT" => number_format( (int)ltrim($row[8], '0') / 100, 2, '.', '' ),
-                          "PROCESS_DT" => date_create_from_format( 'Ymd', $row[11] ),
-                          "DES" => " ",
-                          "TYPE" => " ",
-                          "STATUS" => "H",
-                          "ACCT_NUM" => substr($row[5], -4)
-                ];
-                array_push( $records, $tmp );
+                if( $row[0] !== '9' ){
+                    $tmp = [ 
+                              "ORIGIN_STORE" => $merchant->getStoreCDByMerchantNumber( $row[4], 'SYF' ),
+                              "MERCHANT_NUM" => $row[4],
+                              "CREATE_DT" => date('d-M-Y'),
+                              "AS_CD" => "SYF",
+                              "CREDIT_OR_DEBIT" => $row[6] == '253' ? 'D' : 'C',
+                              "AMT" => number_format( (int)ltrim($row[8], '0') / 100, 2, '.', '' ),
+                              "PROCESS_DT" => date_create_from_format( 'Ymd', $row[10] ),
+                              "TRANSACTION_DT" => date_create_from_format( 'Ymd', $row[9] ),
+                              "DES" => $row[6] =='253' ? "PURCHASE" : "CREDIT",
+                              "TYPE" => "A",
+                              "STATUS" => "H",
+                              "BNK_CRD_NUM" => substr($row[5], -4),
+                              "ACCT_NUM" => $row[5],
+                              "PROMO_CD" => $row[27]
+                    ];
+                    array_push( $records, $tmp );
+                }
             }
 
             return $records;
