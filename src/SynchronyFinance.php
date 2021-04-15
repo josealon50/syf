@@ -707,7 +707,7 @@
 
 
         }
-        public function parseSYFRecon( $handle ){
+        public function parseSYFRecon( $handle, $stores ){
             global $appconfig;
 
             $merchant = new MorStoreToAspMerchant($this->db);
@@ -730,12 +730,14 @@
                               "STATUS" => "H",
                               "BNK_CRD_NUM" => substr($row[5], -4),
                               "ACCT_NUM" => $row[5],
-                              "PROMO_CD" => $row[27]
+                              "PROMO_CD" => trim($row[27])
                     ];
-                    array_push( $records, $tmp );
+
+                    if( count($stores) == 0 || array_search($tmp['ORIGIN_STORE'], $stores ) !== false ){
+                        $records[$tmp['ORIGIN_STORE']][] = $tmp;
+                    }
                 }
             }
-
             return $records;
         }
 
