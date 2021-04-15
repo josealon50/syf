@@ -375,7 +375,7 @@
             $files = [];
             foreach( $sftp->nlist() as $value ){
                 if( strpos( $value, $date ) > 0 ){
-                    $sftp->get( $appconfig['synchrony']['SYF_RECON_PATH'] . $appconfig['synchrony']['SFTP_RECON_FILENAME'], $appconfig['synchrony']['SYF_RECON_PATH'] . $value );
+                    $sftp->get( $appconfig['synchrony']['SFTP_OUTBOUND_FOLDER'] . $value, $appconfig['synchrony']['SYF_RECON_PATH'] . $value );
                     array_push($files, $value);
                 }
             }
@@ -389,7 +389,7 @@
             global $appconfig;
 
             try{ 
-                $enc = system( " gpg --output " . $appconfig['synchrony']['SYF_RECON_FILENAME'] . " --decrypt" . $appconfig['synchrony']['SYF_RECON_IN'] . $filename );
+                $enc = system( " gpg --yes --output " . $appconfig['synchrony']['SYF_RECON_PATH'] . substr($fileName, 0, -4) . " --decrypt " . $appconfig['synchrony']['SYF_RECON_PATH'] . $filename );
                 return true;
             }
             catch( Exception $e ){

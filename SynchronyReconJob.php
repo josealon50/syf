@@ -35,7 +35,7 @@
                     $logger->debug( "Synchrony Reconciliation: Processing " . $file );
                     if ( $syf->decrypt($file) ){
                         $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Succesful ");
-                        $handle = fopen( $appconfig['synchrony']['SYF_RECON_IN'] . $file, 'r' ) or die ( $logger->debug("Synchrony Reconciliation: Unable to open recon file: " . $file) );
+                        $handle = fopen( $appconfig['synchrony']['SYF_RECON_IN'] . substr($file, 0, -4), 'r' ) or die ( $logger->debug("Synchrony Reconciliation: Unable to open recon file: " . $file) );
                         $records = $syf->parseSYFRecon( $handle, $stores );
 
                         if( count($records) == 0 ){
