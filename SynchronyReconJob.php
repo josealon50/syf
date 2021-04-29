@@ -80,6 +80,10 @@
             if ( count($files) > 0 ){
                 $logger->debug( "Synchrony Reconciliation: Files found " . print_r($files, 1) );
             }
+            else{
+                $logger->debug( "Synchrony Reconciliation: No file found" );
+                exit();
+            }
             //$files = [ 'recon.20210310090019.txt' ];
             if ( count($files) > 0 ){
                 foreach( $files as $file ){
