@@ -74,13 +74,14 @@
         //Download file from Synchrony
         $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d") );
         foreach( $dates as $date ){
-            $logger->debug( "Synchrony Reconciliation: Downloading file for " . date("Y-m-d") );
+            $logger->debug( "Synchrony Reconciliation: Downloading file for " . $date->format("Y-m-d"));
+            exit();
             $files = $syf->download( $date->format("Ymd") );
             if ( count($files) > 0 ){
                 $logger->debug( "Synchrony Reconciliation: Files found " . print_r($files, 1) );
             }
             else{
-                $logger->debug( "Synchrony Reconciliation: No file found" );
+                $logger->debug( "Synchrony Reconciliation: No files found" );
                 exit();
             }
             //$files = [ 'recon.20210310090019.txt' ];
