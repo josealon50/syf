@@ -389,10 +389,9 @@
             global $appconfig;
 
             try{ 
-                $enc = system( " gpg --yes --output " . $appconfig['synchrony']['SYF_RECON_PATH'] . substr($fileName, 0, -4) . " --decrypt " . $appconfig['synchrony']['SYF_RECON_PATH'] . $fileName );
+                $enc = system( " gpg --yes --output " . $appconfig['synchrony']['SYF_RECON_IN'] . substr($fileName, 0, -4) . " --decrypt " . $appconfig['synchrony']['SYF_RECON_IN'] . $fileName );
                 return true;
-            }
-            catch( Exception $e ){
+            } catch( Exception $e ){
                 return false;
             }
             
