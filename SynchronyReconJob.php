@@ -75,7 +75,7 @@
         $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d") );
         foreach( $dates as $date ){
             $logger->debug( "Synchrony Reconciliation: Downloading file for " . $date->format("Y-m-d"));
-            exit();
+
             $files = $syf->download( $date->format("Ymd") );
             if ( count($files) > 0 ){
                 $logger->debug( "Synchrony Reconciliation: Files found " . print_r($files, 1) );
@@ -188,7 +188,7 @@
                                 }
                                 if ( $audit ){
                                    //Auditing inserts to AR_TRN 
-                                    $handle = fopen( './out/audit_ar_trn.csv', 'w+' );
+                                    $auditArTrn = fopen( './out/audit_ar_trn.csv', 'w+' );
                                     fwrite( $handle, "CO_CD,CUST_CD,MOP_CD,EMP_CD_CSHR,EMP_CD_OP,ORIGIN_STORE,CSH_DWR_CD,TRN_TP_CD,POST_DT,CREATE_DT,STAT_CD,AR_TP,IVC_CD,PMT_STORE,ORIGIN_CD,DOC_SEQ_NUM\n");
                                 }
                                 while ($aspRecon->next()) {
@@ -229,13 +229,13 @@
                                         }
                                     }
                                     else{
-                                        fwrite( $handle, "BSS,SYF,CS,92388,92388," . $aspRecon->get_ORIGIN_STORE() . ",00,PMT," . $now->toStringOracle() . "," . $aspRecon->get_CREATE_DT('d-M-Y') . ",T,0," . $aspRecon->get_IVC_CD() . ",00,FCRIN,DOC_NUM\n");
+                                        fwrite( $audiArTrn, "BSS,SYF,CS,92388,92388," . $aspRecon->get_ORIGIN_STORE() . ",00,PMT," . $now->toStringOracle() . "," . $aspRecon->get_CREATE_DT('d-M-Y') . ",T,0," . $aspRecon->get_IVC_CD() . ",00,FCRIN,DOC_NUM\n");
                                     }
                                 }
                             }
-                            fclose($handle);
+                            fclose($audirArTrn);
                             $logger->debug( "Synchrony Reconciliation: Archiving " . $file );
-                            if( !copy($appconfig['synchrony']['SYF_RECON_IN'] . substr($file, 0, -4), $appconfig['synchrony']['SYF_RECON_ARCHIVE'] . $file . '.' . date('Ymd')) ){
+                            if( !copy($appconfig['synchrony']['SYF_RECON_IN'] . $file, $appconfig['synchrony']['SYF_RECON_ARCHIVE'] . $file . '.' . date('Ymd')) ){
                                 $logger->debug( "Synchrony Reconciliation: Error archiving " . $file );
                             }
                             else{
