@@ -78,7 +78,7 @@
             $logger->debug( "Synchrony Reconciliation: Downloading file for " . date("Y-m-d") );
             $files = $syf->download( $date->format("Ymd") );
             if ( count($files) > 0 ){
-                $logger->debug( "Synchrony Reconciliation: Files found " . print($files, 1) );
+                $logger->debug( "Synchrony Reconciliation: Files found " . print_r($files, 1) );
             }
             //$files = [ 'recon.20210310090019.txt' ];
             if ( count($files) > 0 ){
