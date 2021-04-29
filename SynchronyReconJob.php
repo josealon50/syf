@@ -51,11 +51,10 @@
         //Check run time parameters run time parameter equal to one run normal with day for today
         if( count($argv) == 1 ){
             $audit = FALSE;
-            $today = new DateTime(null, new DateTimeZone('America/Los_Angeles'));
-            array_push( $dates, $today );
+            $today = new DateTime('yesterday', new DateTimeZone('America/Los_Angeles'));
         }
         else if ( count($argv) == 2 && $argv[1] == 1 ){
-            $today = new DateTime(null, new DateTimeZone('America/Los_Angeles'));
+            $today = new DateTime('yesterday', new DateTimeZone('America/Los_Angeles'));
             array_push( $dates, $today );
         }
         //Build array of stores to be processed if runtime arguments are equal to 5
