@@ -74,11 +74,11 @@
         $logger->debug( "Synchrony Reconciliation: Starting proces " . date("Y-m-d") );
         foreach( $dates as $date ){
             $files = $syf->download( $date->format("Ymd") );
-            $files = [ 'recon.20210310090019.txt' ];
+            //$files = [ 'recon.20210310090019.txt' ];
             if ( count($files) > 0 ){
                 foreach( $files as $file ){
                     $logger->debug( "Synchrony Reconciliation: Processing " . $file );
-                    if ( 1 ){//$syf->decrypt($file) ){
+                    if ( $syf->decrypt($file) ){
                         $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Succesful ");
                         $handle = fopen( $appconfig['synchrony']['SYF_RECON_IN'] . substr($file, 0, -4), 'r' ) or die ( $logger->debug("Synchrony Reconciliation: Unable to open recon file: " . $file) );
                         $records = $syf->parseSYFRecon( $handle, $stores );
