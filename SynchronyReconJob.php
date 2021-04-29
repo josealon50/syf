@@ -44,6 +44,8 @@
         $errors = [];
         $dates = [];
         $stores = [];
+        $storesTotal = [];
+        $total = 0;
         $audit = TRUE;
 
         //Check run time parameters run time parameter equal to one run normal with day for today
@@ -71,9 +73,13 @@
             exit();
         }
         //Download file from Synchrony
-        $logger->debug( "Synchrony Reconciliation: Starting proces " . date("Y-m-d") );
+        $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d") );
         foreach( $dates as $date ){
+            $logger->debug( "Synchrony Reconciliation: Downloading file for " . date("Y-m-d") );
             $files = $syf->download( $date->format("Ymd") );
+            if ( count($files) > 0 ){
+                $logger->debug( "Synchrony Reconciliation: Files found " . print($files, 1) );
+            }
             //$files = [ 'recon.20210310090019.txt' ];
             if ( count($files) > 0 ){
                 foreach( $files as $file ){
