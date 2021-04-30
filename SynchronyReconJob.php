@@ -53,9 +53,12 @@
             $audit = FALSE;
             $today = new DateTime('yesterday', new DateTimeZone('America/Los_Angeles'));
         }
-        else if ( count($argv) == 2 && $argv[1] == 1 ){
+        else if ( count($argv) == 2  ){
             $today = new DateTime('yesterday', new DateTimeZone('America/Los_Angeles'));
             array_push( $dates, $today );
+            if ( $argv[1] !== 1 ){
+               $file = $argv[1]; 
+            }
         }
         //Build array of stores to be processed if runtime arguments are equal to 5
         else if( count($argv) == 5 ){
@@ -76,14 +79,20 @@
         foreach( $dates as $date ){
             $logger->debug( "Synchrony Reconciliation: Downloading file for " . $date->format("Y-m-d"));
 
-            $files = $syf->download( $date->format("Ymd") );
+            if ( $file === '' ){
+                $files = $syf->download( $date->format("Ymd") );
+            }
+            else{
+                //$files = [ 'recon.20210310090019.txt' ];
+                $files = [ $file ];
+            }
+
             if ( count($files) > 0 ){
                 $logger->debug( "Synchrony Reconciliation: Files found " . print_r($files, 1) );
             }
             else{
                 $logger->debug( "Synchrony Reconciliation: No files found" );
             }
-            //$files = [ 'recon.20210310090019.txt' ];
             if ( count($files) > 0 ){
                 foreach( $files as $file ){
                     $logger->debug( "Synchrony Reconciliation: Processing " . $file );
