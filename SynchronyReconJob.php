@@ -191,7 +191,7 @@
 		                if ( $audit ){
 		                   //Auditing inserts to AR_TRN 
 		                    $auditArTrn = fopen( './out/audit_ar_trn.csv', 'w+' );
-		                    fwrite( $handle, "CO_CD,CUST_CD,MOP_CD,EMP_CD_CSHR,EMP_CD_OP,ORIGIN_STORE,CSH_DWR_CD,TRN_TP_CD,POST_DT,CREATE_DT,STAT_CD,AR_TP,IVC_CD,PMT_STORE,ORIGIN_CD,DOC_SEQ_NUM\n");
+		                    fwrite( $auditArTrn, "CO_CD,CUST_CD,MOP_CD,EMP_CD_CSHR,EMP_CD_OP,ORIGIN_STORE,CSH_DWR_CD,TRN_TP_CD,POST_DT,CREATE_DT,STAT_CD,AR_TP,IVC_CD,PMT_STORE,ORIGIN_CD,DOC_SEQ_NUM\n");
 		                }
 		                while ($aspRecon->next()) {
 		                    if ( !$audit ){
@@ -257,10 +257,10 @@
                 
 			                //Build csv errors array
 			                $handle = fopen( './out/syf_recon_error.csv', 'w+');
-			                $header = 'STORE_CD,AS_CD,AMT,ACCT_NUM,BNK_CRD_NUM,SYF_PROCESS_DT'; 
+			                $header = "STORE_CD,AS_CD,AMT,BNK_CRD_NUM,SYF_PROCESS_DT\n"; 
 			                fwrite( $handle, $header );  
 			                foreach( $errors as $error ){
-			                    fwrite( $handle, $error['ORIGIN_STORE_CD'] . "," . 'SYF' . "," . $error['AMT'] . "," . $error['ACCT_NUM'] . "," . $error['BNK_CRD_NUM'] . "," . $error['PROCESS_DATE']->format( 'Y-m-d') . "\n" );
+			                    fwrite( $handle, $error['ORIGIN_STORE'] . "," . 'SYF' . "," . $error['AMT'] . "," . $error['BNK_CRD_NUM'] . "," . $error['PROCESS_DT']->format( 'Y-m-d') . "\n" );
 			                }
 			                fclose($handle);
 
