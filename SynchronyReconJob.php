@@ -44,6 +44,7 @@
         $errors = [];
         $dates = [];
         $stores = [];
+        $file = '';
         $storesTotal = [];
         $total = 0;
         $audit = TRUE;
