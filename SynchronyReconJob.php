@@ -201,7 +201,7 @@
 		                if ( $audit ){
 		                   //Auditing inserts to AR_TRN 
 		                    $auditArTrn = fopen( './out/audit_ar_trn.csv', 'w+' );
-		                    fwrite( $auditArTrn, "CO_CD,CUST_CD,MOP_CD,EMP_CD_CSHR,EMP_CD_OP,ORIGIN_STORE,CSH_DWR_CD,TRN_TP_CD,POST_DT,CREATE_DT,STAT_CD,AR_TP,IVC_CD,PMT_STORE,ORIGIN_CD,DOC_SEQ_NUM\n");
+		                    fwrite( $auditArTrn, "CO_CD,CUST_CD,MOP_CD,EMP_CD_CSHR,EMP_CD_OP,ORIGIN_STORE,CSH_DWR_CD,TRN_TP_CD,POST_DT,CREATE_DT,STAT_CD,AR_TP,IVC_CD,PMT_STORE,ORIGIN_CD\n");
 		                }
 		                while ($aspRecon->next()) {
 		                    if ( !$audit ){
@@ -241,7 +241,7 @@
 		                        }
 		                    }
 		                    else{
-		                        fwrite( $auditArTrn, "BSS,SYF,CS,92388,92388," . $aspRecon->get_ORIGIN_STORE() . ",00,PMT," . $now->toStringOracle() . "," . $aspRecon->get_CREATE_DT('d-M-Y') . ",T,0," . $aspRecon->get_IVC_CD() . ",00,FCRIN,DOC_NUM\n");
+		                        fwrite( $auditArTrn, "BSS,SYF,CS,92388,92388," . $aspRecon->get_ORIGIN_STORE() . ",00,PMT," . $now->toStringOracle() . "," . $aspRecon->get_CREATE_DT('d-M-Y') . ",T,0," . $aspRecon->get_IVC_CD() . ",00,FCRIN\n");
 		                    }
 						}
 						if ( $audit ){
