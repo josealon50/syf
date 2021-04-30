@@ -134,50 +134,50 @@
 		                            }
 		                            $error .= 'CREDIT RECORD FOUND';
 		                        }
+                                if ( !$processed ){
+                                    if ( !isset($storesTotal[$record['ORIGIN_STORE']]) ){
+                                        $storesTotal[$record['ORIGIN_STORE']]['total'] = $record['AMT'];
+                                        $storesTotal[$record['ORIGIN_STORE']]['total_records'] = 1;
+                                    }
+                                    else{
+                                        $storesTotal[$record['ORIGIN_STORE']]['total'] = floatval( $storesTotal[$record['ORIGIN_STORE']] ) + floatval($record['AMT']);
+                                        $storesTotal[$record['ORIGIN_STORE']]['total_records'] = $storesTotal[$record['ORIGIN_STORE']]['total_records'] + 1;
+                                    }
+                                    $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
+                            
+                                    $date = new IDate();
+                                    $date->setDate( $record['PROCESS_DT']->format('Y-m-d H:i:s') );
 
-		                        if ( !isset($storesTotal[$record['ORIGIN_STORE']]) ){
-		                            $storesTotal[$record['ORIGIN_STORE']]['total'] = $record['AMT'];
-		                            $storesTotal[$record['ORIGIN_STORE']]['total_records'] = 1;
-		                        }
-		                        else{
-		                            $storesTotal[$record['ORIGIN_STORE']]['total'] = floatval( $storesTotal[$record['ORIGIN_STORE']] ) + floatval($record['AMT']);
-		                            $storesTotal[$record['ORIGIN_STORE']]['total_records'] = $storesTotal[$record['ORIGIN_STORE']]['total_records'] + 1;
-		                        }
-		                        $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
-						
-		                        $date = new IDate();
-		                        $date->setDate( $record['PROCESS_DT']->format('Y-m-d H:i:s') );
+                                    $aspRecon->set_CREATE_DT( $now->toStringOracle() );
+                                    $aspRecon->set_AS_CD( 'SYF' );
+                                    $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
+                                    $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
+                                    $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
+                                    $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
+                                    $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
+                                    $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
+                                    //$aspRecon->set_ACCT_NUM_PREFIX( $record['BNK_CRD_NUM'] );
+                                    $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
+                                    $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
+                                    $aspRecon->set_AMT( $record['AMT'] );
+                                    $aspRecon->set_DES( $record['DES'] );
+                                    $aspRecon->set_EXCEPTIONS($error); 
 
-		                        $aspRecon->set_CREATE_DT( $now->toStringOracle() );
-		                        $aspRecon->set_AS_CD( 'SYF' );
-		                        $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
-		                        $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
-		                        $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-		                        $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
-		                        $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
-		                        $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
-		                        //$aspRecon->set_ACCT_NUM_PREFIX( $record['BNK_CRD_NUM'] );
-		                        $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
-		                        $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-		                        $aspRecon->set_AMT( $record['AMT'] );
-		                        $aspRecon->set_DES( $record['DES'] );
-		                        $aspRecon->set_EXCEPTIONS($error); 
-
-		                        if ( $processed && $error !== '' ){
-		                            $where = "WHERE AS_CD = 'SYF' AND AS_STORE_CD = '" .$record['ORIGIN_STORE'] . "' AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' AND AMT = '" . $record['AMT'] . "' ";
-		                            $error = $aspRecon->update( $where, false );
-		                            if( $error < 0 ){
-		                                $logger->debug( "Synchrony Reconciliation: Error on UPDATING ASP_RECON" );
-		                                $logger->debug( print_r($record, 1) );
-		                            }
-
-		                        }
-		                        else{
-		                            $error = $aspRecon->insert( true, false );
-		                            if( !$error ){
-		                                $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
-		                            }
-		                        }
+                                    if ( $processed && $error !== '' ){
+                                        $where = "WHERE AS_CD = 'SYF' AND AS_STORE_CD = '" .$record['ORIGIN_STORE'] . "' AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' AND AMT = '" . $record['AMT'] . "' ";
+                                        $error = $aspRecon->update( $where, false );
+                                        if( $error < 0 ){
+                                            $logger->debug( "Synchrony Reconciliation: Error on UPDATING ASP_RECON" );
+                                            $logger->debug( print_r($record, 1) );
+                                        }
+                                    }
+                                    else{
+                                        $error = $aspRecon->insert( true, false );
+                                        if( !$error ){
+                                            $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
+                                        }
+                                    }
+                                }
 		                    }
 		                }
 						
