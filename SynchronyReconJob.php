@@ -58,7 +58,7 @@
         else if ( count($argv) == 2  ){
             $today = new DateTime('yesterday', new DateTimeZone('America/Los_Angeles'));
             array_push( $dates, $today );
-            if ( $argv[1] !== 1 ){
+            if ( $argv[1] !== '1' ){
                $file = $argv[1]; 
                $decrypt = FALSE;
             }
