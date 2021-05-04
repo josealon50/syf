@@ -101,6 +101,9 @@
                     $logger->debug( "Synchrony Reconciliation: Processing " . $file );
                     if ( $decrypt ){
                         $dec = $syf->decrypt($file);
+	                    if( !$dec ){
+	                        $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Failed ");
+	                    }
                     }
                     else{
                         $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Succesful ");
@@ -120,20 +123,29 @@
 		                foreach( $records as $stores ){
 		                    foreach( $stores as $record ){
 		                        $acct = encryptAcct( $record['ACCT_NUM'] );
+                                
+                                $record['DEL_DOC_NUM'] = '';
 
-		                        //Query record on MOR ASP history table 
-		                        $syfSo = new SyfSalesOrder($db);
-		                        $syfSo = $syfSo->getSyfSalesOrder( $record['AMT'], $record['ORIGIN_STORE'], $record['PROMO_CD'], $acct );
+                                //Check first on the transaction asp history
+                                $history = new MorAspTrnHist($db);
+                                $history = $history->getTransactionByStoreCdAcctNunAndAsCd( $record['ORIGIN_STORE'], $record['AMT'], $record['BNK_CRD_NUM'] );
+                                if ( is_null($history) ){
+                                    $syfSo = new SyfSalesOrder($db);
+                                    $syfSo = $syfSo->getSyfSalesOrder( $record['AMT'], $record['ORIGIN_STORE'], $record['PROMO_CD'], $acct );
 
-		                        $record['DEL_DOC_NUM'] = '';
-		                        if( !is_null($syfSo) ){
-		                            $record['DEL_DOC_NUM'] = $syfSo->get_DEL_DOC_NUM();
-		                        }
-		                        else{
-		                            $logger->debug( "Synchrony Reconciliation: History transaction Record not found" );
-		                            $logger->debug( print_r($record, 1) );
-		                            array_push( $errors, $record );
-		                        }
+                                    if( !is_null($syfSo) ){
+                                        $record['DEL_DOC_NUM'] = $syfSo->get_DEL_DOC_NUM();
+                                    }
+                                    else{
+                                        $logger->debug( "Synchrony Reconciliation: History transaction Record not found" );
+                                        $logger->debug( print_r($record, 1) );
+                                        array_push( $errors, $record );
+                                    }
+                                }
+                                else{
+                                    $record['DEL_DOC_NUM'] = $history->get_DEL_DOC_NUM();
+                                }
+                            
 		                        //Check if records have been processed
 		                        $processed = $aspRecon->isRecordProcessed( $record );
 
@@ -284,9 +296,7 @@
 			                }
 			            }
 					}
-                    else{
-                        $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Failed ");
-                    }
+ 
                 }
 			}
         }
