@@ -45,6 +45,7 @@
         $dates = [];
         $stores = [];
         $file = '';
+        $decrypt = TRUE;
         $storesTotal = [];
         $total = 0;
         $audit = TRUE;
@@ -59,6 +60,7 @@
             array_push( $dates, $today );
             if ( $argv[1] !== 1 ){
                $file = $argv[1]; 
+               $decrypt = FALSE;
             }
         }
         //Build array of stores to be processed if runtime arguments are equal to 5
@@ -79,9 +81,15 @@
         $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d") );
         foreach( $dates as $date ){
             $logger->debug( "Synchrony Reconciliation: Downloading file for " . $date->format("Y-m-d"));
-
             if ( $file === '' ){
                 $files = $syf->download( $date->format("Ymd") );
+                if ( count($files) > 0 ){
+                    $logger->debug( "Synchrony Reconciliation: Files found " . print_r($files, 1) );
+                }
+                else{
+                    $logger->debug( "Synchrony Reconciliation: No files found" );
+                    exit();
+                }
             }
             else{
                 //$files = [ 'recon.20210310090019.txt' ];
@@ -89,15 +97,12 @@
             }
 
             if ( count($files) > 0 ){
-                $logger->debug( "Synchrony Reconciliation: Files found " . print_r($files, 1) );
-            }
-            else{
-                $logger->debug( "Synchrony Reconciliation: No files found" );
-            }
-            if ( count($files) > 0 ){
                 foreach( $files as $file ){
                     $logger->debug( "Synchrony Reconciliation: Processing " . $file );
-                    if ( $syf->decrypt($file) ){
+                    if ( $decrypt ){
+                        $dec = $syf->decrypt($file);
+                    }
+                    else{
                         $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Succesful ");
                         $handle = fopen( $appconfig['synchrony']['SYF_RECON_IN'] . $file, 'r' ) or die ( $logger->debug("Synchrony Reconciliation: Unable to open recon file: " . $file) );
                         $records = $syf->parseSYFRecon( $handle, $stores );
