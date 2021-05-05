@@ -115,14 +115,13 @@
                             $logger->debug( "Synchrony Reconciliation: No records to process");
                             continue;
                         }
-		                //Insert records into ASP_RECON
-		                $aspRecon = new ASPRecon($db);
 
 		                $storesTotal = [];
 		                $total = 0;
 		                $logger->debug( "Synchrony Reconciliation: Processing records " . count($records) );
 		                foreach( $records as $stores ){
 		                    foreach( $stores as $record ){
+                                $aspRecon = new ASPRecon($db);
 		                        $acct = encryptAcct( $record['ACCT_NUM'] );
                                 
                                 $record['DEL_DOC_NUM'] = '';
