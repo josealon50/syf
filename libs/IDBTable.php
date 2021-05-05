@@ -312,6 +312,8 @@ class IDBTable {
      *                that returns a number that is >=0 which indicating the number of records returned in the query.
      */
      function query($where="", $postclauses="") {
+        global $logger;
+
         $select      = "select ";
         $column_list = "";
         $from        = "from ".$this->tablename." ";
@@ -341,6 +343,7 @@ class IDBTable {
         }	
         
         $this->last_sql = $select.$column_list." ".$from.$where." ".$postclauses;
+        $logger->debug( "Query: " . $this->last_sql );
 //error_log($this->last_sql."\n", 3, "fbi.log");
         //echo $this->last_sql;
         // Perform the query          
@@ -513,6 +516,8 @@ class IDBTable {
      *                       TRUE if $autoid is set to FALSE 
      */
     function insert($autoid=true, $appupdate=false) {
+        global $logger;
+
         $preamble = "insert into ".$this->tablename." ";
         $collist = "";
         $vallist = "";
@@ -552,6 +557,7 @@ class IDBTable {
                           "values ".
                           "(".$vallist.")";
           
+        $logger->debug( "Insert: " . $this->last_sql );
         $result=$this->execStmt($this->last_sql);
 
         if ($result==false) {

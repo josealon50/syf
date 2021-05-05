@@ -60,6 +60,35 @@ class MorAspTrnHist extends IDBTable {
         return null;
     }
 
+    /*------------------------------------------------------------------------
+     *---------------- getTransactionByStoreCdAcctNunAmtAndAsCd  ----------------
+     *------------------------------------------------------------------------
+     * Function will get transaction by store code, account number and finance
+     * company
+     *
+     * @param 
+     *      STORE_CD : Store code
+     *      ACCT_NUM : Last 4 digits of account number
+     *      AS_CD : Finance Company
+     *
+     * @return IDB Object if found null otherwise
+     *
+     *
+     */
+    public function getTransactionByStoreCdAcctNumAmtAndAsCd( $storeCd, $acctNum, $amt, $asCd ) {
+        global $appconfig, $logger;
+
+        $where = "WHERE STORE_CD = '" . $storeCd . "' AND ACCT_CD = '" . $acctNum . "' AND TRAN_AMT = '" . $amt . "'  AND AS_CD = '" . $asCd . "' ";
+        $result = $this->query( $where );
+        if( $result < 0 ){
+            return false;
+        }
+        if( $row = $this->next() ){
+            return $this;
+        }
+        return null;
+    }
+
 
 }
 

@@ -720,7 +720,7 @@
                               "MERCHANT_NUM" => $row[4],
                               "CREATE_DT" => date('d-M-Y'),
                               "AS_CD" => "SYF",
-                              "CREDIT_OR_DEBIT" => $row[6] == '253' ? 'D' : 'C',
+                              "CREDIT_OR_DEBIT" => $row[6] === '253' ? 'D' : 'C',
                               "AMT" => number_format( (int)ltrim($row[8], '0') / 100, 2, '.', '' ),
                               "PROCESS_DT" => date_create_from_format( 'Ymd', $row[10] ),
                               "TRANSACTION_DT" => date_create_from_format( 'Ymd', $row[9] ),

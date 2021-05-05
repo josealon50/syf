@@ -100,10 +100,11 @@
                 foreach( $files as $file ){
                     $logger->debug( "Synchrony Reconciliation: Processing " . $file );
                     if ( $decrypt ){
-                        $dec = $syf->decrypt($file);
-	                    if( !$dec ){
+                        if( !$syf->decrypt($file) ){
 	                        $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Failed ");
 	                    }
+                        //Need to remove the PGP extension
+                        $file = substr( $file, 0, -4 );
                     }
                     else{
                         $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Succesful ");
@@ -128,7 +129,7 @@
 
                                 //Check first on the transaction asp history
                                 $history = new MorAspTrnHist($db);
-                                $history = $history->getTransactionByStoreCdAcctNunAndAsCd( $record['ORIGIN_STORE'], $record['AMT'], $record['BNK_CRD_NUM'] );
+                                $history = $history->getTransactionByStoreCdAcctNumAmtAndAsCd( $record['ORIGIN_STORE'], $record['BNK_CRD_NUM'], $record['AMT'], 'SYF' );
                                 if ( is_null($history) ){
                                     $syfSo = new SyfSalesOrder($db);
                                     $syfSo = $syfSo->getSyfSalesOrder( $record['AMT'], $record['ORIGIN_STORE'], $record['PROMO_CD'], $acct );
