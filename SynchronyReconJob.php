@@ -54,6 +54,7 @@
         if( count($argv) == 1 ){
             $audit = FALSE;
             $today = new DateTime('yesterday', new DateTimeZone('America/Los_Angeles'));
+            array_push( $dates, $today );
         }
         else if ( count($argv) == 2  ){
             $today = new DateTime('yesterday', new DateTimeZone('America/Los_Angeles'));
@@ -83,6 +84,7 @@
             $logger->debug( "Synchrony Reconciliation: Downloading file for " . $date->format("Y-m-d"));
             if ( $file === '' ){
                 $files = $syf->download( $date->format("Ymd") );
+                //$files = [ 'syf_morfurniture_rrf_DW_20210503090031.txt.PGP' ];
                 if ( count($files) > 0 ){
                     $logger->debug( "Synchrony Reconciliation: Files found " . print_r($files, 1) );
                 }
@@ -106,106 +108,103 @@
                         //Need to remove the PGP extension
                         $file = substr( $file, 0, -4 );
                     }
-                    else{
-                        $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Succesful ");
-                        $handle = fopen( $appconfig['synchrony']['SYF_RECON_IN'] . $file, 'r' ) or die ( $logger->debug("Synchrony Reconciliation: Unable to open recon file: " . $file) );
-                        $records = $syf->parseSYFRecon( $handle, $stores );
+                    $logger->debug( "Synchrony Reconciliation: Decrypting " . $file  . " Succesful ");
+                    $handle = fopen( $appconfig['synchrony']['SYF_RECON_IN'] . $file, 'r' ) or die ( $logger->debug("Synchrony Reconciliation: Unable to open recon file: " . $file) );
+                    $records = $syf->parseSYFRecon( $handle, $stores );
 
-                        if( count($records) == 0 ){
-                            $logger->debug( "Synchrony Reconciliation: No records to process");
-                            continue;
-                        }
+                    if( count($records) == 0 ){
+                        $logger->debug( "Synchrony Reconciliation: No records to process");
+                        continue;
+                    }
 
-		                $storesTotal = [];
-		                $total = 0;
-		                $logger->debug( "Synchrony Reconciliation: Processing records " . count($records) );
-		                foreach( $records as $stores ){
-		                    foreach( $stores as $record ){
-                                $aspRecon = new ASPRecon($db);
-		                        $acct = encryptAcct( $record['ACCT_NUM'] );
-                                
-                                $record['DEL_DOC_NUM'] = '';
+                    $storesTotal = [];
+                    $total = 0;
+                    $logger->debug( "Synchrony Reconciliation: Processing records " . count($records) );
+                    foreach( $records as $stores ){
+                        foreach( $stores as $record ){
+                            $aspRecon = new ASPRecon($db);
+                            
+                            $record['DEL_DOC_NUM'] = '';
 
-                                //Check first on the transaction asp history
-                                $history = new MorAspTrnHist($db);
-                                $history = $history->getTransactionByStoreCdAcctNumAmtAndAsCd( $record['ORIGIN_STORE'], $record['BNK_CRD_NUM'], $record['AMT'], 'SYF' );
-                                if ( is_null($history) ){
-                                    $syfSo = new SyfSalesOrder($db);
-                                    $syfSo = $syfSo->getSyfSalesOrder( $record['AMT'], $record['ORIGIN_STORE'], $record['PROMO_CD'], $acct );
+                            //Check first on the transaction asp history
+                            $history = new MorAspTrnHist($db);
+                            $history = $history->getTransactionByStoreCdAcctNumAmtAndAsCd( $record['ORIGIN_STORE'], $record['BNK_CRD_NUM'], $record['AMT'], 'SYF' );
+                            if ( is_null($history) ){
+                                $syfSo = new SyfSalesOrder($db);
+                                $syfSo = $syfSo->getSyfSalesOrder( $record['AMT'], $record['ORIGIN_STORE'], $record['PROMO_CD'], $record['BNK_CRD_NUM'] );
 
-                                    if( !is_null($syfSo) ){
-                                        $record['DEL_DOC_NUM'] = $syfSo->get_DEL_DOC_NUM();
-                                    }
-                                    else{
-                                        $logger->debug( "Synchrony Reconciliation: History transaction Record not found" );
-                                        $logger->debug( print_r($record, 1) );
-                                        array_push( $errors, $record );
-                                    }
+                                if( !is_null($syfSo) ){
+                                    $record['DEL_DOC_NUM'] = $syfSo->get_DEL_DOC_NUM();
                                 }
                                 else{
-                                    $record['DEL_DOC_NUM'] = $history->get_DEL_DOC_NUM();
+                                    $logger->debug( "Synchrony Reconciliation: History transaction Record not found" );
+                                    $logger->debug( print_r($record, 1) );
+                                    array_push( $errors, $record );
                                 }
-                            
-		                        //Check if records have been processed
-		                        $processed = $aspRecon->isRecordProcessed( $record );
+                            }
+                            else{
+                                $record['DEL_DOC_NUM'] = $history->get_DEL_DOC_NUM();
+                            }
+                        
+                            //Check if records have been processed
+                            $processed = $aspRecon->isRecordProcessed( $record );
 
-		                        $error = '';
-		                        if ( $processed ){
-		                            $logger->debug( "Synchrony Reconciliation: Record has been processed: " . print_r( $record, 1) );
-		                            $error = 'RECORD HAS BEEN PROCESSED'; 
-		                        }
-		                        if( $record['DES'] == 'CREDIT' ){
-		                            $logger->debug( "Synchrony Reconciliation:  Credit Record found" );
-		                            if ( strlen($error) > 0 ){
-		                                $error .= ',';
-		                            }
-		                            $error .= 'CREDIT RECORD FOUND';
-		                        }
+                            $error = '';
+                            if ( $processed ){
+                                $logger->debug( "Synchrony Reconciliation: Record has been processed: " . print_r( $record, 1) );
+                                $error = 'RECORD HAS BEEN PROCESSED'; 
+                            }
+                            if( $record['DES'] == 'CREDIT' ){
+                                $logger->debug( "Synchrony Reconciliation:  Credit Record found" );
+                                if ( strlen($error) > 0 ){
+                                    $error .= ',';
+                                }
+                                $error .= 'CREDIT RECORD FOUND';
+                            }
 
-		                        if ( !isset($storesTotal[$record['ORIGIN_STORE']]) ){
-		                            $storesTotal[$record['ORIGIN_STORE']]['total'] = $record['AMT'];
-		                            $storesTotal[$record['ORIGIN_STORE']]['total_records'] = 1;
-		                        }
-		                        else{
-		                            $storesTotal[$record['ORIGIN_STORE']]['total'] = floatval( $storesTotal[$record['ORIGIN_STORE']] ) + floatval($record['AMT']);
-		                            $storesTotal[$record['ORIGIN_STORE']]['total_records'] = $storesTotal[$record['ORIGIN_STORE']]['total_records'] + 1;
-		                        }
-		                        $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
-						
-		                        $date = new IDate();
-		                        $date->setDate( $record['PROCESS_DT']->format('Y-m-d H:i:s') );
+                            if ( !isset($storesTotal[$record['ORIGIN_STORE']]) ){
+                                $storesTotal[$record['ORIGIN_STORE']]['total'] = $record['AMT'];
+                                $storesTotal[$record['ORIGIN_STORE']]['total_records'] = 1;
+                            }
+                            else{
+                                $storesTotal[$record['ORIGIN_STORE']]['total'] = floatval( $storesTotal[$record['ORIGIN_STORE']] ) + floatval($record['AMT']);
+                                $storesTotal[$record['ORIGIN_STORE']]['total_records'] = $storesTotal[$record['ORIGIN_STORE']]['total_records'] + 1;
+                            }
+                            $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
+                    
+                            $date = new IDate();
+                            $date->setDate( $record['PROCESS_DT']->format('Y-m-d H:i:s') );
 
-		                        $aspRecon->set_CREATE_DT( $now->toStringOracle() );
-		                        $aspRecon->set_AS_CD( 'SYF' );
-		                        $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
-		                        $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
-		                        $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-		                        $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
-		                        $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
-		                        $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
-		                        //$aspRecon->set_ACCT_NUM_PREFIX( $record['BNK_CRD_NUM'] );
-		                        $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
-		                        $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-		                        $aspRecon->set_AMT( $record['AMT'] );
-		                        $aspRecon->set_DES( $record['DES'] );
-		                        $aspRecon->set_EXCEPTIONS($error); 
+                            $aspRecon->set_CREATE_DT( $now->toStringOracle() );
+                            $aspRecon->set_AS_CD( 'SYF' );
+                            $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
+                            $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
+                            $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
+                            $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
+                            $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
+                            $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
+                            //$aspRecon->set_ACCT_NUM_PREFIX( $record['BNK_CRD_NUM'] );
+                            $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
+                            $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
+                            $aspRecon->set_AMT( $record['AMT'] );
+                            $aspRecon->set_DES( $record['DES'] );
+                            $aspRecon->set_EXCEPTIONS($error); 
 
-		                        if ( $processed && $error !== '' ){
-		                            $where = "WHERE AS_CD = 'SYF' AND AS_STORE_CD = '" .$record['ORIGIN_STORE'] . "' AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' AND AMT = '" . $record['AMT'] . "' ";
-		                            $error = $aspRecon->update( $where, false );
-		                            if( $error < 0 ){
-		                                $logger->debug( "Synchrony Reconciliation: Error on UPDATING ASP_RECON" );
-		                                $logger->debug( print_r($record, 1) );
-		                            }
+                            if ( $processed && $error !== '' ){
+                                $where = "WHERE AS_CD = 'SYF' AND AS_STORE_CD = '" .$record['ORIGIN_STORE'] . "' AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' AND AMT = '" . $record['AMT'] . "' ";
+                                $error = $aspRecon->update( $where, false );
+                                if( $error < 0 ){
+                                    $logger->debug( "Synchrony Reconciliation: Error on UPDATING ASP_RECON" );
+                                    $logger->debug( print_r($record, 1) );
+                                }
 
-		                        }
-		                        else{
-		                            $error = $aspRecon->insert( true, false );
-		                            if( !$error ){
-		                                $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
-		                            }
-		                        }
-		                    }
+                            }
+                            else{
+                                $error = $aspRecon->insert( true, false );
+                                if( !$error ){
+                                    $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
+                                }
+                            }
 		                }
 						
 		                //After prepping data insert into AR_TRN
@@ -339,17 +338,5 @@
 
 
         }
-
-        function encryptAcct( $acctNum ) {
-            global $appconfig;
-
-            //Encrypt Account number
-            $encryption = openssl_encrypt($acctNum, $appconfig['ciphering'], $appconfig['encryption_key'], $appconfig['options'], $appconfig['encryption_iv']);
-
-
-            return $encryption;
-        }
-
-
 
 ?>

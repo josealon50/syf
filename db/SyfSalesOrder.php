@@ -18,10 +18,10 @@ class SyfSalesOrder extends IDBTable {
 
 	}
 
-    public function getSyfSalesOrder( $amt, $storeCd, $promoCd, $acctNum ){
+    public function getSyfSalesOrder( $amt, $storeCd, $promoCd, $acctCd ){
         global $appconfig, $logger; 
 
-        $where = "WHERE ORD_TP_CD = 'SAL' AND SO_STORE_CD = '" . $storeCd . "' AND FIN_CUST_CD = 'SYF' AND ORIG_FI_AMT = '" . $amt . "' AND AS_PROMO_CD = '" . $promoCd . "' AND c.ACCT_NUM = '" . $acctNum . "' ";
+        $where = "WHERE ORD_TP_CD = 'SAL' AND SO_STORE_CD = '" . $storeCd . "' AND FIN_CUST_CD = 'SYF' AND ORIG_FI_AMT = '" . $amt . "' AND AS_PROMO_CD = '" . $promoCd . "' AND c.ACCT_CD = '" . $acctCd . "' ";
 
         $result = $this->query( $where );
 

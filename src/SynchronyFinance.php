@@ -714,7 +714,7 @@
 
             while(($data = fgets($handle)) !== FALSE){
                 $row = explode( "|", $data );
-                if( $row[0] !== '9' ){
+                if( $row[0] == 2 ){
                     $tmp = [ 
                               "ORIGIN_STORE" => $merchant->getStoreCDByMerchantNumber( $row[4], 'SYF' ),
                               "MERCHANT_NUM" => $row[4],
@@ -729,7 +729,7 @@
                               "STATUS" => "H",
                               "BNK_CRD_NUM" => substr($row[5], -4),
                               "ACCT_NUM" => $row[5],
-                              "PROMO_CD" => trim($row[27])
+                              "PROMO_CD" => ltrim(trim($row[27]), '0')
                     ];
 
                     if( count($stores) == 0 || array_search($tmp['ORIGIN_STORE'], $stores ) !== false ){
