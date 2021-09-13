@@ -37,10 +37,10 @@ class ASPRecon extends IDBTable {
     public function isRecordProcessed( $record ){
         global $appconfig;
 
-        $where = "WHERE AS_CD = '" . $record['AS_CD'] . "' AND AMT = '" . $record['AMT'] . "' AND AS_STORE_CD = '" . $record['ORIGIN_STORE'] . "' ";
+        $where = "WHERE AS_CD = '" . $record['AS_CD'] . "' AND AMT = '" . $record['AMT'] . "' AND AS_STORE_CD = '" . $record['ORIGIN_STORE'] . "' AND STATUS IN ('E', 'H', 'P') " ;
         
         if( $record['DEL_DOC_NUM'] !== '' ){ 
-            $where .= "' AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' ";
+            $where .= " AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' ";
         }
 
         $result = $this->query($where);

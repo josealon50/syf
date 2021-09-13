@@ -26,8 +26,8 @@
 
         include_once( '../config.php');
         include_once( './autoload.php' );
-        include_once( './libs/PHPMailer/PHPMailerAutoload.php' );
         include_once( './libs/SimpleXLSX.php' );
+        include_once( './libs/PHPMailer/PHPMailerAutoload.php' );
 
         global $appconfig, $logger;
 
@@ -44,182 +44,166 @@
         $decrypt = TRUE;
         $storesTotal = [];
         $total = 0;
-        $audit = TRUE;
+        $audit = $argv[1];
 
         //Download file from Synchrony
-        $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d") );
-        $logger->debug( "Synchrony Reconciliation: Processing " . $argv[1] );
-
-        if ( $xlsx = SimpleXLSX::parse('DailyFundingReport - 2021-08-05T073249.729.xlsx') ) {
-            $logger->debug( "Synchrony Reconciliation: Processing records " . count($xlsx->rows()) );
-            foreach( $xlsx->rows() as $transaction ){
-                $aspRecon = new ASPRecon($db);
-                if ( $transaction[1] == 'MOR FURNITURE FOR LESS INC' || $transaction[0] == 'SUB TOTAL' ){
-                    continue;
-                }
-                if ( substr($transaction[7], 0, 1) !== '0' ){
-                    $transaction[7] = '0' . $transaction[7];
-                } 
-                $so = new SalesOrder( $db );
-                //Find SO record with approval code and amount 
-                $where  = "WHERE ORIG_FI_AMT = '" . $transaction[8] . "' AND APPROVAL_CD = '" . $transaction[7] . "' ";
-                $result = $so->query( $where );
-                if ( $result < 0 ) {
-                    $logger->debug( "Could not query SO" );
-                    exit();
-                }
-                $record = buildRecord( $record );
-                $processed = $aspRecon->isRecordProcessed( $record );
-
-                $error = '';
-                if ( $processed ){
-                    $logger->debug( "Synchrony Reconciliation: Record has been processed: " . print_r( $record, 1) );
-                    $error = 'RECORD HAS BEEN PROCESSED'; 
-                }
-                if( $record['DES'] !== 'SALE' ){
-                    $logger->debug( "Synchrony Reconciliation:  Credit Record found" );
-                    if ( strlen($error) > 0 ){
-                        $error .= ',';
-                    }
-                    $error .= 'CREDIT RECORD FOUND';
-                }
-
-                if ( !isset($storesTotal[$record['ORIGIN_STORE']]) ){
-                    $storesTotal[$record['ORIGIN_STORE']]['total'] = $record['AMT'];
-                    $storesTotal[$record['ORIGIN_STORE']]['total_records'] = 1;
-                }
-                else{
-                    $storesTotal[$record['ORIGIN_STORE']]['total'] = floatval( $storesTotal[$record['ORIGIN_STORE']] ) + floatval($record['AMT']);
-                    $storesTotal[$record['ORIGIN_STORE']]['total_records'] = $storesTotal[$record['ORIGIN_STORE']]['total_records'] + 1;
-                }
-                $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
+        $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d h:i:sa") );
         
-                $date = new IDate();
-                $date->setDate( $record['PROCESS_DT'] );
+        //Check if there is any recon files in folder
+        if (empty($appconfig['recon']['RECON_FOLDER'])) {
+            $logger->debug( "Synchrony Reconciliation: No files found" );
+            exit();
+        }
+        else{
+            $logger->debug( "Synchrony Reconciliation: Recon files found" );
 
-                $aspRecon->set_CREATE_DT( $now->toStringOracle() );
-                $aspRecon->set_AS_CD( 'SYF' );
-                $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
-                $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
-                $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-                $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
-                $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
-                $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
-                //$aspRecon->set_ACCT_NUM_PREFIX( $record['BNK_CRD_NUM'] );
-                $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
-                $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-                $aspRecon->set_AMT( $record['AMT'] );
-                $aspRecon->set_DES( $record['DES'] );
-                $aspRecon->set_EXCEPTIONS($error); 
+            //Open directory and read files
+            if( is_dir( $appconfig['recon']['RECON_FOLDER'] )){
+                if ( $dir = opendir( $appconfig['recon']['RECON_FOLDER'] )){
+                    while (($file = readdir($dir)) !== false) {
+                        if( $file == '.' || $file == '.DS_Store' || $file == '..' ) continue;
+                        $logger->debug( "Synchrony Reconciliation: Processing " . $file );
 
-                if ( $processed && $error !== '' ){
-                    $where = "WHERE AS_CD = 'SYF' AND AS_STORE_CD = '" .$record['ORIGIN_STORE'] . "' AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' AND AMT = '" . $record['AMT'] . "' ";
-                    $error = $aspRecon->update( $where, false );
-                    if( $error < 0 ){
-                        $logger->debug( "Synchrony Reconciliation: Error on UPDATING ASP_RECON" );
-                        $logger->debug( print_r($record, 1) );
-                    }
+                        //Read file 
+                        if( ($handle = fopen( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, 'r' )) !== FALSE ){ 
+                            while (($line = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                                $aspRecon = new ASPRecon($db);
 
-                }
-                else{
-                    $error = $aspRecon->insert( true, false );
-                    if( !$error ){
-                        $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
-                    }
-                }
-            }
-            
-            //After prepping data insert into AR_TRN
-            $aspRecon = new ASPRecon($db);
-            $result = $aspRecon->query("WHERE STATUS = 'H' and DES = 'PURCHASE'");
+                                //If no auth code process next record
+                                if( $line[7] == '' ){
+                                    continue;
+                                }
+                                if( $line[1] === "MERCHANT NBR" ){
+                                    continue;
+                                }
+                                $line[8] = str_replace( ',', '', $line[8] );
+                                $so = new SalesOrder( $db );
+                                //Find SO record with approval code and amount 
+                                $where  = "WHERE ORIG_FI_AMT = '" . $line[8] . "' AND APPROVAL_CD = '" . $line[7] . "' ";
+                                $result = $so->query( $where );
+                                if ( $result < 0 ) {
+                                    $logger->debug( "Synchrony Reconciliation: Could not query SO" );
+                                    exit();
+                                }
+                                if( $so->next() ){
+                                    $logger->debug( "Synchrony Reconciliation: SO Record found" );
+                                    $record = buildRecord( $so, $line );
+                                    if ( !isset($storesTotal[$record['ORIGIN_STORE']]) ){
+                                        $storesTotal[$record['ORIGIN_STORE']]['total'] = $record['AMT'];
+                                        $storesTotal[$record['ORIGIN_STORE']]['total_records'] = 1;
+                                    }
+                                    else{
+                                        $storesTotal[$record['ORIGIN_STORE']]['total'] = floatval( $storesTotal[$record['ORIGIN_STORE']] ) + floatval($record['AMT']);
+                                        $storesTotal[$record['ORIGIN_STORE']]['total_records'] = $storesTotal[$record['ORIGIN_STORE']]['total_records'] + 1;
+                                    }
+                                    $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
 
-            if( $result <  0 ){
-                $logger->debug("Synchrony Reconciliation: Error query on ASP_RECON" );
-            }
-            if ( $audit ){
-               //Auditing inserts to AR_TRN 
-                $auditArTrn = fopen( './out/audit_ar_trn.csv', 'w+' );
-                fwrite( $auditArTrn, "CO_CD,CUST_CD,MOP_CD,EMP_CD_CSHR,EMP_CD_OP,ORIGIN_STORE,CSH_DWR_CD,TRN_TP_CD,POST_DT,CREATE_DT,STAT_CD,AR_TP,IVC_CD,PMT_STORE,ORIGIN_CD\n");
-            }
-            while ($aspRecon->next()) {
-                if ( !$audit ){
-                    $artrn = new ArTrn($db);
-                    $artrn->set_CO_CD('BSS');
-                    $artrn->set_CUST_CD('SYF');
-                    $artrn->set_MOP_CD('CS');
-                    $artrn->set_EMP_CD_CSHR('92388');
-                    $artrn->set_EMP_CD_OP('92388');
-                    $artrn->set_ORIGIN_STORE($aspRecon->get_ORIGIN_STORE());
-                    $artrn->set_CSH_DWR_CD('00');
-                    $artrn->set_TRN_TP_CD('PMT');
-            
-                    //converts the 2nd argument into the POST_DT
-                    $now = new IDate();
-                    $artrn->set_POST_DT($now->toStringOracle());
+                                    processIntoAsp( $aspRecon, $record, '' );
+                            
+                                }
+                                else{
+                                    $logger->debug( "Synchrony Reconciliation: SO Record not found" );
+                                    $logger->debug( print_r($line, 1) );
 
-                    //date the FCRIN file was created on SYF end
-                    $artrn->set_CREATE_DT($aspRecon->get_CREATE_DT('d-M-Y'));
-                    $artrn->set_STAT_CD('T');
-                    $artrn->set_AR_TP('O');
-                    $artrn->set_IVC_CD($aspRecon->get_IVC_CD());
-                    $artrn->set_PMT_STORE('00');
-                    $artrn->set_ORIGIN_CD('FCRIN');
-                    $artrn->set_DOC_SEQ_NUM(genDocNum($db, '00'));
-                    $insertCheck = $artrn->artrn();
-                    if ($insertCheck === false) {
-                        $logger->debug( "Synchrony Reconciliation: Error on insert ");
-                    } 
-                    else {
-                        //UPDATES THE RECORD TO 'P' from 'H' if the insert is successful
-                        $aspRecon->aspRecon('where ID = ' .$aspRecon->get_ID());
-                        if ($aspRecon->next()) {
-                            $aspRecon->set_STATUS('P');
-                            $aspRecon->update('where ID = ' .$aspRecon->get_ID(), false);
+                                    $record = buildRecord( null, $line );
+                                    processIntoAsp( $aspRecon, $record, "SO RECORD NOT FOUND" );
+                                }
+                            }
+                            //Archive file 
+                            rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
+                            
+                            //After prepping data insert into AR_TRN
+                            $aspRecon = new ASPRecon($db);
+                            $result = $aspRecon->query("WHERE STATUS = 'H' and DES = 'SALE'");
+
+                            if( $result <  0 ){
+                                $logger->debug("Synchrony Reconciliation: Error query on ASP_RECON" );
+                            }
+                            if ( $audit ){
+                                //Auditing inserts to AR_TRN 
+                                $auditArTrn = fopen( './out/audit_ar_trn.csv', 'w+' );
+                                fwrite( $auditArTrn, "CO_CD,CUST_CD,MOP_CD,EMP_CD_CSHR,EMP_CD_OP,ORIGIN_STORE,CSH_DWR_CD,TRN_TP_CD,POST_DT,CREATE_DT,STAT_CD,AR_TP,IVC_CD,PMT_STORE,ORIGIN_CD\n");
+                            }
+                            while ($aspRecon->next()) {
+                                if ( !$audit ){
+                                    $artrn = new ArTrn($db);
+                                    $artrn->set_CO_CD('BSS');
+                                    $artrn->set_CUST_CD('SYF');
+                                    $artrn->set_MOP_CD('CS');
+                                    $artrn->set_EMP_CD_CSHR('92388');
+                                    $artrn->set_EMP_CD_OP('92388');
+                                    $artrn->set_ORIGIN_STORE($aspRecon->get_ORIGIN_STORE());
+                                    $artrn->set_CSH_DWR_CD('00');
+                                    $artrn->set_TRN_TP_CD('PMT');
+                            
+                                    //converts the 2nd argument into the POST_DT
+                                    $now = new IDate();
+                                    $artrn->set_POST_DT($now->toStringOracle());
+
+                                    //date the FCRIN file was created on SYF end
+                                    $artrn->set_CREATE_DT($aspRecon->get_CREATE_DT('d-M-Y'));
+                                    $artrn->set_STAT_CD('T');
+                                    $artrn->set_AR_TP('O');
+                                    $artrn->set_IVC_CD($aspRecon->get_IVC_CD());
+                                    $artrn->set_PMT_STORE('00');
+                                    $artrn->set_ORIGIN_CD('FCRIN');
+                                    $artrn->set_DOC_SEQ_NUM(genDocNum($db, '00'));
+                                    $insertCheck = $artrn->artrn();
+                                    if ($insertCheck === false) {
+                                        $logger->debug( "Synchrony Reconciliation: Error on insert ");
+                                    } 
+                                    else {
+                                        //UPDATES THE RECORD TO 'P' from 'H' if the insert is successful
+                                        $aspRecon->aspRecon('where ID = ' .$aspRecon->get_ID());
+                                        if ($aspRecon->next()) {
+                                            $aspRecon->set_STATUS('P');
+                                            $aspRecon->update('where ID = ' .$aspRecon->get_ID(), false);
+                                        }
+                                    }
+                                }
+                                else{
+                                    fwrite( $auditArTrn, "BSS,SYF,CS,92388,92388," . $aspRecon->get_ORIGIN_STORE() . ",00,PMT," . $now->toStringOracle() . "," . $aspRecon->get_CREATE_DT('d-M-Y') . ",T,0," . $aspRecon->get_IVC_CD() . ",00,FCRIN\n");
+                                }
+                            }
+                            if ( $audit ){
+                                fclose($auditArTrn);
+                            }
+                            $logger->debug( "Synchrony Reconciliation: Total by Stores " );
+                            $logger->debug( print_r($storesTotal, 1) );
+                            $logger->debug( "Synchrony Reconciliation: Total " . number_format($total, 2, '.', '') );
+                            $logger->debug( $total );
+
+                            if( count($storesTotal) > 0 ){
+                                //Send Email 
+                                $style = " style='border: 1px solid black;'";
+                                $body = "<table" .$style . "><tr" . $style ."><th" . $style . ">Store Code</th><th" . $style . ">Total Transactions Processed</th><th" . $style . ">Total Amount Processed</th></tr>";
+                                foreach( $storesTotal as $key => $store ){
+                                    $body .= "<tr" . $style . ">";
+                                    $body .= "<td" . $style . ">" . $key  . "</td>"; 
+                                    $body .= "<td" . $style . ">" . $store['total_records']   . "</td>"; 
+                                    $body .= "<td" . $style . ">" . $store['total']  . "</td>"; 
+                                    $body .= "</tr>"; 
+                                }
+                                $body .= "</table>";
+                    
+                                //Build csv errors array
+                                $handle = fopen( './out/syf_recon_error.csv', 'w+');
+                                $header = "STORE_CD,AS_CD,AMT,BNK_CRD_NUM,SYF_PROCESS_DT\n"; 
+                                fwrite( $handle, $header );  
+                                foreach( $errors as $error ){
+                                    fwrite( $handle, $error['ORIGIN_STORE'] . "," . 'SYF' . "," . $error['AMT'] . "," . $error['BNK_CRD_NUM'] . "," . $error['PROCESS_DT']->format( 'Y-m-d') . "\n" );
+                                }
+                                fclose($handle);
+
+                                if ( !emailRecon( $body, $date ) ){
+                                   $logger->debug("Synchrony Reconciliation: Email did not send" ); 
+                                }
+                            }
                         }
                     }
                 }
-                else{
-                    fwrite( $auditArTrn, "BSS,SYF,CS,92388,92388," . $aspRecon->get_ORIGIN_STORE() . ",00,PMT," . $now->toStringOracle() . "," . $aspRecon->get_CREATE_DT('d-M-Y') . ",T,0," . $aspRecon->get_IVC_CD() . ",00,FCRIN\n");
-                }
             }
-            if ( $audit ){
-                fclose($auditArTrn);
-            }
-            $logger->debug( "Synchrony Reconciliation: Total by Stores " );
-            $logger->debug( print_r($storesTotal, 1) );
-            $logger->debug( "Synchrony Reconciliation: Total " . number_format($total, 2, '.', '') );
-            $logger->debug( $total );
 
-            if( count($storesTotal) > 0 ){
-                //Send Email 
-                $style = " style='border: 1px solid black;'";
-                $body = "<table" .$style . "><tr" . $style ."><th" . $style . ">Store Code</th><th" . $style . ">Total Transactions Processed</th><th" . $style . ">Total Amount Processed</th></tr>";
-                foreach( $storesTotal as $key => $store ){
-                    $body .= "<tr" . $style . ">";
-                    $body .= "<td" . $style . ">" . $key  . "</td>"; 
-                    $body .= "<td" . $style . ">" . $store['total_records']   . "</td>"; 
-                    $body .= "<td" . $style . ">" . $store['total']  . "</td>"; 
-                    $body .= "</tr>"; 
-                }
-                $body .= "</table>";
-    
-                //Build csv errors array
-                $handle = fopen( './out/syf_recon_error.csv', 'w+');
-                $header = "STORE_CD,AS_CD,AMT,BNK_CRD_NUM,SYF_PROCESS_DT\n"; 
-                fwrite( $handle, $header );  
-                foreach( $errors as $error ){
-                    fwrite( $handle, $error['ORIGIN_STORE'] . "," . 'SYF' . "," . $error['AMT'] . "," . $error['BNK_CRD_NUM'] . "," . $error['PROCESS_DT']->format( 'Y-m-d') . "\n" );
-                }
-                fclose($handle);
-
-                if ( !emailRecon( $body, $date ) ){
-                   $logger->debug("Synchrony Reconciliation: Email did not send" ); 
-                }
-            }
-        }
-        else {
-            $logger->debug( SimpleXLSX::parseError() );
-            exit();
         }
         
 
@@ -242,12 +226,8 @@
             $mail->Body    = $body;
 
             if(!$mail->send()) {
-                echo 'Message could not be sent.'."\n";
-                echo 'Mailer Error: ' . $mail->ErrorInfo;
                 return -1;
-            } else {
-                echo 'Message has been sent'."\n\n";
-            }
+            } 
             return true;
 
 
@@ -264,18 +244,73 @@
 
         function buildRecord( $so, $transaction ) {
             $tmp = array();
-            $tmp['ORIGIN_STORE'] = $so->get_SO_STORE_CD();
+
+            $tmp['ORIGIN_STORE'] = is_null($so) ? '00' : $so->get_SO_STORE_CD();
             $tmp['STATUS'] = 'H';
             $tmp['BNK_CRD_NUM'] = substr( $transaction[4], -4 );
-            $tmp['DEL_DOC_NUM'] = $so->get_DEL_DOC_NUM();
+            $tmp['DEL_DOC_NUM'] = is_null($so) ? '' : $so->get_DEL_DOC_NUM();
             $tmp['AMT'] = $transaction[8];
-            $tmp['DES'] = $row[2];
+            $tmp['DES'] = $transaction[2];
             $tmp['AS_CD'] = 'SYF';
             $tmp['PROCESS_DT'] = $transaction[3];
-            $tmp['TYPE'] = $row[2];
+            $tmp['TYPE'] = 'S';
+            $tmp['CREDIT_OR_DEBIT'] = 'D';
 
             return $tmp;
 
+        }
+
+        function processIntoAsp( $aspRecon, $record, $error ){
+            global $appconfig, $logger;
+
+            $date = new IDate();
+            $now = new IDate();
+            $date->setDate( $record['PROCESS_DT'] );
+
+            $aspRecon->set_CREATE_DT( $now->toStringOracle() );
+            $aspRecon->set_AS_CD( 'SYF' );
+            $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
+            $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
+            $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
+            $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
+            $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
+            $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
+            $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
+            $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
+            $aspRecon->set_AMT( $record['AMT'] );
+            $aspRecon->set_DES( $record['DES'] );
+            $aspRecon->set_EXCEPTIONS($error); 
+
+            $processed = $aspRecon->isRecordProcessed( $record );
+            if ( $processed ){
+                $logger->debug( "Synchrony Reconciliation: Record has been processed: " . print_r( $record, 1) );
+                $error .= 'RECORD HAS BEEN PROCESSED'; 
+                $record['STATUS'] = 'E';
+            }
+            if( $record['DES'] !== 'SALE' ){
+                $logger->debug( "Synchrony Reconciliation:  Credit Record found" );
+                if ( strlen($error) > 0 ){
+                    $error .= ',';
+                }
+                $error .= 'CREDIT RECORD FOUND';
+                $record['STATUS'] = 'E';
+            }
+
+            if ( $processed  ){
+                $where = "WHERE AS_CD = 'SYF' AND AS_STORE_CD = '" .$record['ORIGIN_STORE'] . "' AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' AND AMT = '" . $record['AMT'] . "' ";
+                $error = $aspRecon->update( $where, false );
+                if( $error < 0 ){
+                    $logger->debug( "Synchrony Reconciliation: Error on UPDATING ASP_RECON" );
+                    $logger->debug( print_r($record, 1) );
+                }
+
+            }
+            else{
+                $error = $aspRecon->insert( true, false );
+                if( !$error ){
+                    $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
+                }
+            }
         }
 
 ?>
