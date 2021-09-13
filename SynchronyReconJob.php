@@ -44,7 +44,7 @@
         $decrypt = TRUE;
         $storesTotal = [];
         $total = 0;
-        $audit = $argv[1];
+        $audit = $argv[1] == 1;
 
         //Download file from Synchrony
         $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d h:i:sa") );
