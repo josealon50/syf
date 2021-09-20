@@ -2,5 +2,5 @@ config.php
 pgp_keys/
 out/
 in/
-libs/
+archive/
 *.swp
