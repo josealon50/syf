@@ -79,7 +79,7 @@
                                 $line[8] = str_replace( ',', '', $line[8] );
                                 $so = new SalesOrder( $db );
                                 //Find SO record with approval code and amount 
-                                $where  = "WHERE ORIG_FI_AMT = '" . $line[8] . "' AND APPROVAL_CD = '" . $line[7] . "' AND FNAME = '" . $line[5] . "' AND LNAME = '" . $line[6] . "' ";
+                                $where  = "WHERE ORIG_FI_AMT = '" . $line[8] . "' AND APPROVAL_CD = '" . $line[7] . "' ";
 
                                 $result = $so->query( $where );
                                 if ( $result < 0 ) {
