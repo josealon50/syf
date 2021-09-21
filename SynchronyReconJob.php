@@ -116,7 +116,7 @@
                             
                             //After prepping data insert into AR_TRN
                             $aspRecon = new ASPRecon($db);
-                            $result = $aspRecon->query("WHERE STATUS = 'H' and DES = 'SALE'");
+                            $result = $aspRecon->query("WHERE STATUS = 'H' and DES = 'SALE' AND AS_CD='SYF'");
 
                             if( $result <  0 ){
                                 $logger->debug("Synchrony Reconciliation: Error query on ASP_RECON" );
