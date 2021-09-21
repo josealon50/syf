@@ -39,40 +39,26 @@
          */
         public function genDocNum($db, $storeCd) {
             global $logger;
-            // Variables 
-            $docNum  = "           ";
-            $seqNum  = "    ";
-            $autoDoc = "           ";
-
-            // Connect to Database
-            $conn = $db->getConnection();		        
-
-            /* The call */
-            $sql = "CALL MOR_UTILS.genDocNum(:STORECD, sysdate, :DOCNUM, :DOCSEQ) into :TEMP";
-
-            /* Parse connection and sql */
-            $stmt = oci_parse($conn, $sql);
+            $stmt = oci_parse(
+                $db->getConnection(),
+                'CALL MOR_UTILS.genDocNum(:STORECD, sysdate, :DOCNUM, :DOCSEQ) into :TEMP'
+            );
 
             if (! $stmt) {
-                $logger->error(oci_error());
-
-                return false;
+                            $logger->error(oci_error());
+                            return false;
             }
 
-            /* Binding Parameters */
-            oci_bind_by_name($stmt, ':STORECD', $storeCd) ;
-            oci_bind_by_name($stmt, ':DOCNUM', $docNum) ;
-            oci_bind_by_name($stmt, ':DOCSEQ', $seqNum) ;
-            oci_bind_by_name($stmt, ':TEMP', $autoDoc) ;
+            oci_bind_by_name($stmt, ':STORECD', $storeCd);
+            oci_bind_by_name($stmt, ':DOCNUM', $docNum, 11);
+            oci_bind_by_name($stmt, ':DOCSEQ', $seqNum, 4);
+            oci_bind_by_name($stmt, ':TEMP', $autoDoc, 11);
 
-            /* Execute */
-            $res = oci_execute($stmt);
-
-            if (!$res) {
+            if (!oci_execute($stmt)) {
                 $logger->error(oci_error());
-
                 return false;
             }
+            return $seqNum;
 
             return $autoDoc;
         }
