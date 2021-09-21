@@ -36,6 +36,7 @@
         $db = $mor->standAloneAppConnect();
         $syf = new SynchronyFinance( $db );
         $now = new IDate();
+        $date = new IDate();
 
         $errors = [];
         $dates = [];
