@@ -4,7 +4,7 @@ class ArTrn extends IDBTable {
 
 	public function __construct($db) {
 		parent::__construct($db);
-		$this->tablename        = 'CUST_ASP';
+		$this->tablename        = 'AR_TRN';
 		$this->dbcolumns        = array(
 									  'CO_CD'=>'CO_CD'
 									, 'CUST_CD'=>'CUST_CD'
