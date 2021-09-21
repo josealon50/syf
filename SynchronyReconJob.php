@@ -148,7 +148,7 @@
                                     $artrn->set_IVC_CD($aspRecon->get_IVC_CD());
                                     $artrn->set_PMT_STORE('00');
                                     $artrn->set_ORIGIN_CD('FCRIN');
-                                    $artrn->set_DOC_SEQ_NUM(genDocNum($db, '00'));
+                                    $artrn->set_DOC_SEQ_NUM($mor->genDocNum($db, '00'));
                                     $insertCheck = $artrn->artrn();
                                     if ($insertCheck === false) {
                                         $logger->debug( "Synchrony Reconciliation: Error on insert ");
