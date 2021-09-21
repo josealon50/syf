@@ -13,6 +13,7 @@ class ArTrn extends IDBTable {
 									, 'EMP_CD_OP'=>'EMP_CD_OP'
 									, 'ORIGIN_STORE'=>'ORIGIN_STORE'
 									, 'CSH_DWR_CD'=>'CSH_DWR_CD'
+									, 'AMT'=>'AMT'
 									, 'TRN_TP_CD'=>'TRN_TP_CD'
 									, 'POST_DT'=>'POST_DT'
 									, 'CREATE_DT'=>'CREATE_DT'

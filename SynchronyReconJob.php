@@ -137,6 +137,7 @@
                                     $artrn->set_ORIGIN_STORE($aspRecon->get_ORIGIN_STORE());
                                     $artrn->set_CSH_DWR_CD('00');
                                     $artrn->set_TRN_TP_CD('PMT');
+                                    $artrn->set_AMT($aspRecon->get_AMT());
                             
                                     //converts the 2nd argument into the POST_DT
                                     $now = new IDate();
