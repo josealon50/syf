@@ -256,6 +256,8 @@
             $tmp['DEL_DOC_NUM'] = is_null($so) ? '' : $so->get_DEL_DOC_NUM();
             $tmp['AMT'] = $transaction[8];
             $tmp['DES'] = $transaction[2];
+            $tmp['DISCOUNT'] = $transaction[9] == '' ? '0' : $transaction[9] * -1;
+            $tmp['TOTAL_AMT'] = number_format( $tmp['AMT'] - $tmp['DISCOUNT'], 2, '.', '' );
             $tmp['AS_CD'] = 'SYF';
             $tmp['PROCESS_DT'] = $transaction[3];
             $tmp['TYPE'] = 'S';
@@ -282,7 +284,7 @@
             $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
             $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
             $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-            $aspRecon->set_AMT( $record['AMT'] );
+            $aspRecon->set_AMT( $record['TOTAL_AMT'] );
             $aspRecon->set_DES( $record['DES'] );
             $aspRecon->set_EXCEPTIONS($error); 
 
