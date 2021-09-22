@@ -159,7 +159,7 @@
                                     } 
                                     else {
                                         //UPDATES THE RECORD TO 'P' from 'H' if the insert is successful
-                                        $aspRecon->aspRecon('where ID = ' .$aspRecon->get_ID());
+                                        $aspRecon->update('where ID = ' .$aspRecon->get_ID());
                                         if ($aspRecon->next()) {
                                             $aspRecon->set_STATUS('P');
                                             $aspRecon->update('where ID = ' .$aspRecon->get_ID(), false);
