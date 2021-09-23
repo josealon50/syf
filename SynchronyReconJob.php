@@ -160,7 +160,11 @@
                                     } 
                                     else {
                                         //UPDATES THE RECORD TO 'P' from 'H' if the insert is successful
-                                        $aspRecon->update('where ID = ' .$aspRecon->get_ID());
+                                        $result = $aspRecon->query('where ID = ' .$aspRecon->get_ID());
+                                        if ( $result < 0 ) {
+                                            $logger->debug( "Synchrony Reconciliation: Could not query SO" );
+                                        }
+
                                         if ($aspRecon->next()) {
                                             $aspRecon->set_STATUS('P');
                                             $aspRecon->update('where ID = ' .$aspRecon->get_ID(), false);
@@ -328,6 +332,9 @@
                 $aspRecon->set_EXCEPTIONS(''); 
 
                 $error = $aspRecon->insert( true, false );
+                if( !$error ){
+                    $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
+                }
             }
         }
 
