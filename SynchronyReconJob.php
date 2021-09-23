@@ -100,7 +100,7 @@
                                     }
                                     $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
 
-                                    processIntoAsp( $aspRecon, $record, '' );
+                                    processIntoAsp( $db, $aspRecon, $record, '' );
                             
                                 }
                                 else{
@@ -108,7 +108,7 @@
                                     $logger->debug( print_r($line, 1) );
 
                                     $record = buildRecord( null, $line );
-                                    processIntoAsp( $aspRecon, $record, "SO RECORD NOT FOUND" );
+                                    processIntoAsp( $db, $aspRecon, $record, "SO RECORD NOT FOUND" );
                                 }
                             }
                             //Archive file 
@@ -116,7 +116,7 @@
                             
                             //After prepping data insert into AR_TRN
                             $aspRecon = new ASPRecon($db);
-                            $result = $aspRecon->query("WHERE STATUS = 'H' and DES = 'SALE' AND AS_CD='SYF'");
+                            $result = $aspRecon->query("WHERE STATUS = 'H' and DES in ( 'PURCHASE', 'ACQUISITION' ) AND AS_CD='SYF'");
 
                             if( $result <  0 ){
                                 $logger->debug("Synchrony Reconciliation: Error query on ASP_RECON" );
@@ -136,7 +136,8 @@
                                     $artrn->set_EMP_CD_OP('92388');
                                     $artrn->set_ORIGIN_STORE($aspRecon->get_ORIGIN_STORE());
                                     $artrn->set_CSH_DWR_CD('00');
-                                    $artrn->set_TRN_TP_CD('PMT');
+                                    //Set TRN_TP_CD depending on description
+                                    $artrn->set_TRN_TP_CD($aspRecon->get_DES() == 'PURCHASE' ? 'PMT' : 'FDC' );
                                     $artrn->set_AMT($aspRecon->get_AMT());
                             
                                     //converts the 2nd argument into the POST_DT
@@ -256,7 +257,7 @@
             $tmp['DEL_DOC_NUM'] = is_null($so) ? '' : $so->get_DEL_DOC_NUM();
             $tmp['AMT'] = $transaction[8];
             $tmp['DES'] = $transaction[2];
-            $tmp['DISCOUNT'] = $transaction[9] == '' ? '0' : $transaction[9] * -1;
+            $tmp['DISCOUNT'] = $transaction[9] == '' ? '0' : number_format($transaction[9] * -1, 2, '.', '' );
             $tmp['TOTAL_AMT'] = number_format( $tmp['AMT'] - $tmp['DISCOUNT'], 2, '.', '' );
             $tmp['AS_CD'] = 'SYF';
             $tmp['PROCESS_DT'] = $transaction[3];
@@ -267,7 +268,7 @@
 
         }
 
-        function processIntoAsp( $aspRecon, $record, $error ){
+        function processIntoAsp( $db, $aspRecon, $record, $error ){
             global $appconfig, $logger;
 
             $date = new IDate();
@@ -285,7 +286,7 @@
             $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
             $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
             $aspRecon->set_AMT( $record['TOTAL_AMT'] );
-            $aspRecon->set_DES( $record['DES'] );
+            $aspRecon->set_DES( 'PURCHASE' );
             $aspRecon->set_EXCEPTIONS($error); 
 
             $processed = $aspRecon->isRecordProcessed( $record );
@@ -303,20 +304,29 @@
                 $record['STATUS'] = 'E';
             }
 
-            if ( $processed  ){
-                $where = "WHERE AS_CD = 'SYF' AND AS_STORE_CD = '" .$record['ORIGIN_STORE'] . "' AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' AND AMT = '" . $record['AMT'] . "' ";
-                $error = $aspRecon->update( $where, false );
-                if( $error < 0 ){
-                    $logger->debug( "Synchrony Reconciliation: Error on UPDATING ASP_RECON" );
-                    $logger->debug( print_r($record, 1) );
-                }
-
-            }
-            else{
+            if ( !$processed  ){
                 $error = $aspRecon->insert( true, false );
                 if( !$error ){
                     $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
                 }
+
+                //Insert discount record
+                $apsRecon = new ASPRecon($db); 
+                $aspRecon->set_CREATE_DT( $now->toStringOracle() );
+                $aspRecon->set_AS_CD( 'SYF' );
+                $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
+                $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
+                $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
+                $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
+                $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
+                $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
+                $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
+                $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
+                $aspRecon->set_AMT( $record['DISCOUNT'] );
+                $aspRecon->set_DES( 'ACQUISITION' );
+                $aspRecon->set_EXCEPTIONS($error); 
+
+                $error = $aspRecon->insert( true, false );
             }
         }
 
