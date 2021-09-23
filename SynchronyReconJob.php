@@ -311,7 +311,8 @@
                 }
 
                 //Insert discount record
-                $apsRecon = new ASPRecon($db); 
+                $aspRecon = new ASPRecon($db); 
+
                 $aspRecon->set_CREATE_DT( $now->toStringOracle() );
                 $aspRecon->set_AS_CD( 'SYF' );
                 $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
