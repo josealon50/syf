@@ -49,7 +49,12 @@
 
         //Download file from Synchrony
         $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d h:i:sa") );
-        
+        if ( $argv[1] == 2 ){ 
+            $logger->debug( "Synchrony Reconciliation: Process Only ASP_RECON staged records" );
+            processASPRecon($db, false);
+            exit();
+
+        }
         //Check if there is any recon files in folder
         if (empty($appconfig['recon']['RECON_FOLDER'])) {
             $logger->debug( "Synchrony Reconciliation: No files found" );
@@ -113,76 +118,9 @@
                             }
                             //Archive file 
                             rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
+
+                            processASPRecon( $db, $audit );
                             
-                            //After prepping data insert into AR_TRN
-                            $aspRecon = new ASPRecon($db);
-                            $result = $aspRecon->query("WHERE STATUS = 'H' and DES in ( 'PURCHASE', 'ACQUISITION' ) AND AS_CD='SYF'");
-
-                            if( $result <  0 ){
-                                $logger->debug("Synchrony Reconciliation: Error query on ASP_RECON" );
-                            }
-                            if ( $audit ){
-                                //Auditing inserts to AR_TRN 
-                                $auditArTrn = fopen( './out/audit_ar_trn.csv', 'w+' );
-                                fwrite( $auditArTrn, "CO_CD,CUST_CD,MOP_CD,EMP_CD_CSHR,EMP_CD_OP,ORIGIN_STORE,CSH_DWR_CD,TRN_TP_CD,POST_DT,CREATE_DT,STAT_CD,AR_TP,IVC_CD,PMT_STORE,ORIGIN_CD\n");
-                            }
-                            while ($aspRecon->next()) {
-                                if ( !$audit ){
-                                    $artrn = new ArTrn($db);
-                                    $artrn->set_CO_CD('BSS');
-                                    $artrn->set_CUST_CD('SYF');
-                                    $artrn->set_MOP_CD('CS');
-                                    $artrn->set_EMP_CD_CSHR('92388');
-                                    $artrn->set_EMP_CD_OP('92388');
-                                    $artrn->set_ORIGIN_STORE($aspRecon->get_ORIGIN_STORE());
-                                    $artrn->set_CSH_DWR_CD('00');
-                                    //Set TRN_TP_CD depending on description
-                                    $artrn->set_TRN_TP_CD($aspRecon->get_DES() == 'PURCHASE' ? 'PMT' : 'FDC' );
-                                    $artrn->set_AMT($aspRecon->get_AMT());
-                            
-                                    //converts the 2nd argument into the POST_DT
-                                    $now = new IDate();
-                                    $artrn->set_POST_DT($now->toStringOracle());
-
-                                    //date the FCRIN file was created on SYF end
-                                    $artrn->set_CREATE_DT($aspRecon->get_CREATE_DT('d-M-Y'));
-                                    $artrn->set_STAT_CD('T');
-                                    $artrn->set_AR_TP('O');
-                                    $artrn->set_IVC_CD($aspRecon->get_IVC_CD());
-                                    $artrn->set_PMT_STORE('00');
-                                    $artrn->set_ORIGIN_CD('FCRIN');
-                                    $artrn->set_DOC_SEQ_NUM($mor->genDocNum($db, '00'));
-
-                                    $insertCheck = $artrn->insert( true, false );
-
-                                    if ($insertCheck === false) {
-                                        $logger->debug( "Synchrony Reconciliation: Error on insert ");
-                                    } 
-                                    else {
-                                        //UPDATES THE RECORD TO 'P' from 'H' if the insert is successful
-                                        $updt = new ASPRecon($db);
-                                        $result = $updt->query('where ID = ' .$updt->get_ID());
-                                        if ( $result < 0 ) {
-                                            $logger->debug( "Synchrony Reconciliation: Could not query SO" );
-                                        }
-
-                                        if ($updt->next()) {
-                                            $updt->set_STATUS('P');
-                                            $result = $updt->update('where ID = ' .$updt->get_ID(), false);
-
-                                            if( $result < 0 ){
-                                                $logger->debug( "Synchrony Reconciliation: Could not update ASP_RECON #2" );
-                                            }
-                                        }
-                                    }
-                                }
-                                else{
-                                    fwrite( $auditArTrn, "BSS,SYF,CS,92388,92388," . $aspRecon->get_ORIGIN_STORE() . ",00,PMT," . $now->toStringOracle() . "," . $aspRecon->get_CREATE_DT('d-M-Y') . ",T,0," . $aspRecon->get_IVC_CD() . ",00,FCRIN\n");
-                                }
-                            }
-                            if ( $audit ){
-                                fclose($auditArTrn);
-                            }
                             $logger->debug( "Synchrony Reconciliation: Total by Stores " );
                             $logger->debug( print_r($storesTotal, 1) );
                             $logger->debug( "Synchrony Reconciliation: Total " . number_format($total, 2, '.', '') );
@@ -345,4 +283,77 @@
             }
         }
 
+        function processASPRecon( $db, $audit ){
+            global $logger;
+            
+            //After prepping data insert into AR_TRN
+            $aspRecon = new ASPRecon($db);
+            $result = $aspRecon->query("WHERE STATUS = 'H' and DES in ( 'PURCHASE', 'ACQUISITION' ) AND AS_CD='SYF'");
+
+            if( $result <  0 ){
+                $logger->debug("Synchrony Reconciliation: Error query on ASP_RECON" );
+            }
+            if ( $audit ){
+                //Auditing inserts to AR_TRN 
+                $auditArTrn = fopen( './out/audit_ar_trn.csv', 'w+' );
+                fwrite( $auditArTrn, "CO_CD,CUST_CD,MOP_CD,EMP_CD_CSHR,EMP_CD_OP,ORIGIN_STORE,CSH_DWR_CD,TRN_TP_CD,POST_DT,CREATE_DT,STAT_CD,AR_TP,IVC_CD,PMT_STORE,ORIGIN_CD\n");
+            }
+            while ($aspRecon->next()) {
+                if ( !$audit ){
+                    $artrn = new ArTrn($db);
+                    $artrn->set_CO_CD('BSS');
+                    $artrn->set_CUST_CD('SYF');
+                    $artrn->set_MOP_CD('CS');
+                    $artrn->set_EMP_CD_CSHR('92388');
+                    $artrn->set_EMP_CD_OP('92388');
+                    $artrn->set_ORIGIN_STORE($aspRecon->get_ORIGIN_STORE());
+                    $artrn->set_CSH_DWR_CD('00');
+                    //Set TRN_TP_CD depending on description
+                    $artrn->set_TRN_TP_CD($aspRecon->get_DES() == 'PURCHASE' ? 'PMT' : 'FDC' );
+                    $artrn->set_AMT($aspRecon->get_AMT());
+            
+                    //converts the 2nd argument into the POST_DT
+                    $now = new IDate();
+                    $artrn->set_POST_DT($now->toStringOracle());
+
+                    //date the FCRIN file was created on SYF end
+                    $artrn->set_CREATE_DT($aspRecon->get_CREATE_DT('d-M-Y'));
+                    $artrn->set_STAT_CD('T');
+                    $artrn->set_AR_TP('O');
+                    $artrn->set_IVC_CD($aspRecon->get_IVC_CD());
+                    $artrn->set_PMT_STORE('00');
+                    $artrn->set_ORIGIN_CD('FCRIN');
+                    $artrn->set_DOC_SEQ_NUM($mor->genDocNum($db, '00'));
+
+                    $insertCheck = $artrn->insert( true, false );
+
+                    if ($insertCheck === false) {
+                        $logger->debug( "Synchrony Reconciliation: Error on insert ");
+                    } 
+                    else {
+                        //UPDATES THE RECORD TO 'P' from 'H' if the insert is successful
+                        $updt = new ASPRecon($db);
+                        $result = $updt->query('where ID = ' .$updt->get_ID());
+                        if ( $result < 0 ) {
+                            $logger->debug( "Synchrony Reconciliation: Could not query SO" );
+                        }
+
+                        if ($updt->next()) {
+                            $updt->set_STATUS('P');
+                            $result = $updt->update('where ID = ' .$updt->get_ID(), false);
+
+                            if( $result < 0 ){
+                                $logger->debug( "Synchrony Reconciliation: Could not update ASP_RECON #2" );
+                            }
+                        }
+                    }
+                }
+                else{
+                    fwrite( $auditArTrn, "BSS,SYF,CS,92388,92388," . $aspRecon->get_ORIGIN_STORE() . ",00,PMT," . $now->toStringOracle() . "," . $aspRecon->get_CREATE_DT('d-M-Y') . ",T,0," . $aspRecon->get_IVC_CD() . ",00,FCRIN\n");
+                }
+            }
+            if ( $audit ){
+                fclose($auditArTrn);
+            }
+        }
 ?>
