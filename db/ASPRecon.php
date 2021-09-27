@@ -50,6 +50,23 @@ class ASPRecon extends IDBTable {
 
         return false;
     }
+
+    public function isRecordStaged( $record ){
+        global $appconfig;
+
+        $where = "WHERE AS_CD = '" . $record['AS_CD'] . "' AND AMT = '" . $record['AMT'] . "' AND AS_STORE_CD = '" . $record['ORIGIN_STORE'] . "' AND STATUS IN ( 'H', 'E' ) " ;
+        
+        if( $record['DEL_DOC_NUM'] !== '' ){ 
+            $where .= " AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' ";
+        }
+
+        $result = $this->query($where);
+        if( $row = $this->next() ){
+            return true;
+        }
+
+        return false;
+    }
 }
 
 ?>

@@ -313,31 +313,34 @@
             }
 
             if ( !$processed  ){
-                 $error = $aspRecon->insert( true, false );
-                if( !$error ){
-                    $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
-                }
+                //Check if the there is any staged records
+                if ( !$aspRecon->isRecordStaged($record) ){;
+                    $error = $aspRecon->insert( true, false );
+                    if( !$error ){
+                        $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
+                    }
 
-                //Insert discount record
-                $aspRecon = new ASPRecon($db); 
+                    //Insert discount record
+                    $aspRecon = new ASPRecon($db); 
 
-                $aspRecon->set_CREATE_DT( $now->toStringOracle() );
-                $aspRecon->set_AS_CD( 'SYF' );
-                $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
-                $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
-                $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-                $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
-                $aspRecon->set_STATUS( $record['STATUS'] );
-                $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
-                $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
-                $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-                $aspRecon->set_AMT( $record['DISCOUNT'] );
-                $aspRecon->set_DES( 'ACQUISITION' );
-                $aspRecon->set_EXCEPTIONS(''); 
+                    $aspRecon->set_CREATE_DT( $now->toStringOracle() );
+                    $aspRecon->set_AS_CD( 'SYF' );
+                    $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
+                    $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
+                    $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
+                    $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
+                    $aspRecon->set_STATUS( $record['STATUS'] );
+                    $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
+                    $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
+                    $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
+                    $aspRecon->set_AMT( $record['DISCOUNT'] );
+                    $aspRecon->set_DES( 'ACQUISITION' );
+                    $aspRecon->set_EXCEPTIONS(''); 
 
-                $error = $aspRecon->insert( true, false );
-                if( !$error ){
-                    $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
+                    $error = $aspRecon->insert( true, false );
+                    if( !$error ){
+                        $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
+                    }
                 }
             }
         }
