@@ -51,7 +51,7 @@
         $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d h:i:sa") );
         if ( $argv[1] == 2 ){ 
             $logger->debug( "Synchrony Reconciliation: Process Only ASP_RECON staged records" );
-            processASPRecon($db, false);
+            processASPRecon($db, false, $mor);
             exit();
 
         }
@@ -119,7 +119,7 @@
                             //Archive file 
                             rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
 
-                            processASPRecon( $db, $audit );
+                            processASPRecon( $db, $audit, $mor );
                             
                             $logger->debug( "Synchrony Reconciliation: Total by Stores " );
                             $logger->debug( print_r($storesTotal, 1) );
@@ -283,7 +283,7 @@
             }
         }
 
-        function processASPRecon( $db, $audit ){
+        function processASPRecon( $db, $audit, $mor ){
             global $logger;
             
             //After prepping data insert into AR_TRN
