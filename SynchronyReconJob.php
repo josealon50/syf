@@ -153,7 +153,7 @@
                                     $artrn->set_ORIGIN_CD('FCRIN');
                                     $artrn->set_DOC_SEQ_NUM($mor->genDocNum($db, '00'));
 
-                                    $insertCheck = $artrn->insert();
+                                    $insertCheck = $artrn->insert( false, false );
 
                                     if ($insertCheck === false) {
                                         $logger->debug( "Synchrony Reconciliation: Error on insert ");
@@ -204,7 +204,6 @@
                                     fwrite( $handle, $error['ORIGIN_STORE'] . "," . 'SYF' . "," . $error['AMT'] . "," . $error['BNK_CRD_NUM'] . "," . $error['PROCESS_DT']->format( 'Y-m-d') . "\n" );
                                 }
                                 fclose($handle);
-
                                 if ( !emailRecon( $body, $date ) ){
                                    $logger->debug("Synchrony Reconciliation: Email did not send" ); 
                                 }
