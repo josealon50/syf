@@ -153,7 +153,7 @@
                                     $artrn->set_ORIGIN_CD('FCRIN');
                                     $artrn->set_DOC_SEQ_NUM($mor->genDocNum($db, '00'));
 
-                                    $insertCheck = $artrn->insert( false, false );
+                                    $insertCheck = $artrn->insert( true, false );
 
                                     if ($insertCheck === false) {
                                         $logger->debug( "Synchrony Reconciliation: Error on insert ");
