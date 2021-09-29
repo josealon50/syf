@@ -72,6 +72,7 @@
                         //Read file 
                         if( ($handle = fopen( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, 'r' )) !== FALSE ){ 
                             while (($line = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                                /*
                                 $aspRecon = new ASPRecon($db);
 
                                 //If no auth code process next record
@@ -106,9 +107,10 @@
                                     $record = buildRecord( null, $line );
                                     processIntoAsp( $db, $aspRecon, $record, "SO RECORD NOT FOUND" );
                                 }
+                                 */
                             }
                             //Archive file 
-                            rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
+                            //rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
 
                             $storesTotal = processASPRecon( $db, $audit, $mor );
                             
@@ -199,6 +201,10 @@
             $tmp['PROCESS_DT'] = $transaction[3];
             $tmp['TYPE'] = 'S';
             $tmp['CREDIT_OR_DEBIT'] = 'D';
+            
+            //Use post date 
+            $postIDate = new IDate($transaction[8], 'Ymd'); 
+            $tmp['POST_DT'] = $postIDate->toStringOracle();
 
             return $tmp;
 
@@ -217,7 +223,7 @@
             $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
             $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
             $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-            $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
+            $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
             $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
             $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
             $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
@@ -259,7 +265,7 @@
                     $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
                     $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
                     $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-                    $aspRecon->set_PROCESS_DT( $date->toStringOracle() );
+                    $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
                     $aspRecon->set_STATUS( $record['STATUS'] );
                     $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
                     $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
@@ -305,10 +311,7 @@
                     //Set TRN_TP_CD depending on description
                     $artrn->set_TRN_TP_CD($aspRecon->get_DES() == 'PURCHASE' ? 'PMT' : 'FDC' );
                     $artrn->set_AMT($aspRecon->get_AMT());
-            
-                    //converts the 2nd argument into the POST_DT
-                    $now = new IDate();
-                    $artrn->set_POST_DT($now->toStringOracle());
+                    $artrn->set_POST_DT( $aspRecon->get_PROCESS_DT() );
 
                     //date the FCRIN file was created on SYF end
                     $artrn->set_CREATE_DT($aspRecon->get_CREATE_DT('d-M-Y'));
@@ -341,7 +344,7 @@
                             }
 
                             //return stores total
-                            if ( !isset($storesTotal[$aspRecon->get_ORIGIN_STORE]) ){
+                            if ( !isset($storesTotal[$aspRecon->get_ORIGIN_STORE()]) ){
                                 $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total'] = $aspRecon->get_AMT();
                                 $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total_records'] = 1;
                             }
