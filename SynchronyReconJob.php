@@ -253,8 +253,6 @@
                         $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
                     }
 
-                    $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
-
                     //Insert discount record
                     $aspRecon = new ASPRecon($db); 
 
