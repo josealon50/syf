@@ -108,7 +108,7 @@
                                 }
                             }
                             //Archive file 
-                            //rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
+                            rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
 
                             $storesTotal = processASPRecon( $db, $audit, $mor );
                             
