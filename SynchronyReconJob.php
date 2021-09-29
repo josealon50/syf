@@ -72,7 +72,6 @@
                         //Read file 
                         if( ($handle = fopen( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, 'r' )) !== FALSE ){ 
                             while (($line = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                                /*
                                 $aspRecon = new ASPRecon($db);
 
                                 //If no auth code process next record
@@ -107,7 +106,6 @@
                                     $record = buildRecord( null, $line );
                                     processIntoAsp( $db, $aspRecon, $record, "SO RECORD NOT FOUND" );
                                 }
-                                 */
                             }
                             //Archive file 
                             //rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
