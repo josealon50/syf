@@ -233,7 +233,7 @@
             $processed = $aspRecon->isRecordProcessed( $record );
             if ( $processed ){
                 $logger->debug( "Synchrony Reconciliation: Record has been processed: " . print_r( $record, 1) );
-                $error .= 'RECORD HAS BEEN PROCESSED'; 
+                $error .= ',RECORD HAS BEEN PROCESSED'; 
                 $record['STATUS'] = 'E';
             }
             if( $record['DES'] !== 'SALE' ){
@@ -276,6 +276,9 @@
                     if( !$error ){
                         $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
                     }
+                }
+                else{
+                    return;
                 }
             }
         }
