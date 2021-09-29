@@ -348,8 +348,8 @@
                                 $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total_records'] = 1;
                             }
                             else{
-                                $storesTotal[$record['ORIGIN_STORE']]['total'] = floatval( $storesTotal[$aspRecon->get_ORIGIN_STORE()] ) + floatval( $aspRecon->get_AMT() );
-                                $storesTotal[$record['ORIGIN_STORE']]['total_records'] = $storesTotal[$$aspRecon->get_ORIGIN_STORE()]['total_records'] + 1;
+                                $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total'] = floatval( $storesTotal[$aspRecon->get_ORIGIN_STORE()] ) + floatval( $aspRecon->get_AMT() );
+                                $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total_records'] = $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total_records'] + 1;
                             }
                         }
                     }
