@@ -43,7 +43,6 @@
         $stores = [];
         $file = '';
         $decrypt = TRUE;
-        $storesTotal = [];
         $total = 0;
         $audit = $argv[1] == 1;
 
@@ -51,7 +50,7 @@
         $logger->debug( "Synchrony Reconciliation: Starting process " . date("Y-m-d h:i:sa") );
         if ( $argv[1] == 2 ){ 
             $logger->debug( "Synchrony Reconciliation: Process Only ASP_RECON staged records" );
-            processASPRecon($db, false, $mor);
+            $storesTotal = processASPRecon($db, false, $mor);
             exit();
 
         }
@@ -83,6 +82,7 @@
                                     continue;
                                 }
                                 $line[8] = str_replace( ',', '', $line[8] );
+
                                 $so = new SalesOrder( $db );
                                 //Find SO record with approval code and amount 
                                 $where  = "WHERE ORIG_FI_AMT = '" . $line[8] . "' AND APPROVAL_CD = '" . $line[7] . "' ";
@@ -95,15 +95,6 @@
                                 if( $so->next() ){
                                     $logger->debug( "Synchrony Reconciliation: SO Record found" );
                                     $record = buildRecord( $so, $line );
-                                    if ( !isset($storesTotal[$record['ORIGIN_STORE']]) ){
-                                        $storesTotal[$record['ORIGIN_STORE']]['total'] = $record['AMT'];
-                                        $storesTotal[$record['ORIGIN_STORE']]['total_records'] = 1;
-                                    }
-                                    else{
-                                        $storesTotal[$record['ORIGIN_STORE']]['total'] = floatval( $storesTotal[$record['ORIGIN_STORE']] ) + floatval($record['AMT']);
-                                        $storesTotal[$record['ORIGIN_STORE']]['total_records'] = $storesTotal[$record['ORIGIN_STORE']]['total_records'] + 1;
-                                    }
-                                    $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
 
                                     processIntoAsp( $db, $aspRecon, $record, '' );
                             
@@ -119,7 +110,7 @@
                             //Archive file 
                             rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
 
-                            processASPRecon( $db, $audit, $mor );
+                            $storesTotal = processASPRecon( $db, $audit, $mor );
                             
                             $logger->debug( "Synchrony Reconciliation: Total by Stores " );
                             $logger->debug( print_r($storesTotal, 1) );
@@ -155,7 +146,6 @@
                     }
                 }
             }
-
         }
         
 
@@ -219,6 +209,7 @@
 
             $date = new IDate();
             $now = new IDate();
+            $storesTotal = [];
             $date->setDate( $record['PROCESS_DT'] );
 
             $aspRecon->set_CREATE_DT( $now->toStringOracle() );
@@ -258,6 +249,8 @@
                         $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
                     }
 
+                    $total = floatval($total) + floatval($storesTotal[$record['ORIGIN_STORE']]);
+
                     //Insert discount record
                     $aspRecon = new ASPRecon($db); 
 
@@ -288,6 +281,7 @@
             
             //After prepping data insert into AR_TRN
             $aspRecon = new ASPRecon($db);
+            $storesTotal = [];
             $result = $aspRecon->query("WHERE STATUS = 'H' and DES in ( 'PURCHASE', 'ACQUISITION' ) AND AS_CD='SYF'");
 
             if( $result <  0 ){
@@ -323,9 +317,9 @@
                     $artrn->set_IVC_CD($aspRecon->get_IVC_CD());
                     $artrn->set_PMT_STORE('00');
                     $artrn->set_ORIGIN_CD('FCRIN');
-                    $artrn->set_DOC_SEQ_NUM($mor->genDocNum($db, '00'));
+                    $artrn->set_DOC_SEQ_NUM('');
 
-                    $insertCheck = $artrn->insert( true, false );
+                    $insertCheck = $artrn->insert( false, false );
 
                     if ($insertCheck === false) {
                         $logger->debug( "Synchrony Reconciliation: Error on insert ");
@@ -333,7 +327,7 @@
                     else {
                         //UPDATES THE RECORD TO 'P' from 'H' if the insert is successful
                         $updt = new ASPRecon($db);
-                        $result = $updt->query('where ID = ' .$updt->get_ID());
+                        $result = $updt->query('where ID = ' .$aspRecon->get_ID());
                         if ( $result < 0 ) {
                             $logger->debug( "Synchrony Reconciliation: Could not query SO" );
                         }
@@ -345,6 +339,16 @@
                             if( $result < 0 ){
                                 $logger->debug( "Synchrony Reconciliation: Could not update ASP_RECON #2" );
                             }
+
+                            //return stores total
+                            if ( !isset($storesTotal[$aspRecon->get_ORIGIN_STORE]) ){
+                                $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total'] = $aspRecon->get_AMT();
+                                $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total_records'] = 1;
+                            }
+                            else{
+                                $storesTotal[$record['ORIGIN_STORE']]['total'] = floatval( $storesTotal[$aspRecon->get_ORIGIN_STORE()] ) + floatval( $aspRecon->get_AMT() );
+                                $storesTotal[$record['ORIGIN_STORE']]['total_records'] = $storesTotal[$$aspRecon->get_ORIGIN_STORE()]['total_records'] + 1;
+                            }
                         }
                     }
                 }
@@ -355,5 +359,9 @@
             if ( $audit ){
                 fclose($auditArTrn);
             }
+
+            return $storesTotal;
+
+
         }
 ?>

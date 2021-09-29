@@ -29,7 +29,7 @@ class ArTrn extends IDBTable {
 										  'POST_DT'
 										, 'CREATE_DT'
 										);
-
+        $this->setAutoIDColumn("IVC_CD");
 
 		$this->errorMsg 			= "";
 
