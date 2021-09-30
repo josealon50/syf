@@ -155,7 +155,8 @@
             $tmp['CREDIT_OR_DEBIT'] = 'D';
             
             //Use post date 
-            $postIDate = new IDate($postDate, 'Ymd'); 
+            $postIDate = new IDate(); 
+            $postIDate->setDate( $postDate, 'Ymd' )
             $tmp['POST_DT'] = $postIDate->toStringOracle();
 
             return $tmp;
@@ -168,7 +169,7 @@
             $date = new IDate();
             $now = new IDate();
             $storesTotal = [];
-            $date->setDate( $record['PROCESS_DT'] );
+            $date->setDate( $record['POST_DT'] );
 
             $processed = $aspRecon->isRecordProcessed( $record );
             if ( $processed ){
