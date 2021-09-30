@@ -194,7 +194,7 @@
             $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
             $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
             $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-            $aspRecon->set_AMT( $record['TOTAL_AMT'] );
+            $aspRecon->set_AMT( $record['AMT'] );
             $aspRecon->set_DES( $record['DES'] === 'SALE' ? 'PURCHASE' : 'CREDIT' );
             $aspRecon->set_EXCEPTIONS($error); 
 
@@ -240,6 +240,7 @@
             
             //After prepping data insert into AR_TRN
             $aspRecon = new ASPRecon($db);
+            $now = new IDate();
             $storesTotal = [];
             $result = $aspRecon->query("WHERE STATUS = 'H' and DES in ( 'PURCHASE', 'ACQUISITION' ) AND AS_CD='SYF'");
 
