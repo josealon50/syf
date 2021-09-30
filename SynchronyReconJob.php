@@ -96,7 +96,6 @@
                                 if( $so->next() ){
                                     $logger->debug( "Synchrony Reconciliation: SO Record found" );
                                     $record = buildRecord( $so, $line, $postDate );
-                                    $record['POST_DT'] = $postDate;
 
                                     processIntoAsp( $db, $aspRecon, $record, '' );
                             
@@ -171,20 +170,6 @@
             $storesTotal = [];
             $date->setDate( $record['PROCESS_DT'] );
 
-            $aspRecon->set_CREATE_DT( $now->toStringOracle() );
-            $aspRecon->set_AS_CD( 'SYF' );
-            $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
-            $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
-            $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-            $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
-            $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
-            $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
-            $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
-            $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-            $aspRecon->set_AMT( $record['TOTAL_AMT'] );
-            $aspRecon->set_DES( 'PURCHASE' );
-            $aspRecon->set_EXCEPTIONS($error); 
-
             $processed = $aspRecon->isRecordProcessed( $record );
             if ( $processed ){
                 $logger->debug( "Synchrony Reconciliation: Record has been processed: " . print_r( $record, 1) );
@@ -200,6 +185,23 @@
                 $record['STATUS'] = 'E';
             }
 
+            $record['STATUS'] = $error == '' ? $record['STATUS'] : 'E';
+            $record['ERROR'] = $error;
+
+            $aspRecon->set_CREATE_DT( $now->toStringOracle() );
+            $aspRecon->set_AS_CD( 'SYF' );
+            $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
+            $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
+            $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
+            $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
+            $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
+            $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
+            $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
+            $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
+            $aspRecon->set_AMT( $record['TOTAL_AMT'] );
+            $aspRecon->set_DES( $record['STATUS'] === 'SALE' ? 'PURCHASE' : 'CREDIT' );
+            $aspRecon->set_EXCEPTIONS($error); 
+
             if ( !$processed  ){
                 //Check if the there is any staged records
                 if ( !$aspRecon->isRecordStaged($record) ){;
@@ -207,35 +209,34 @@
                     if( !$error ){
                         $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
                     }
-                    //Only insert record when there is no error on the main record
-                    if( $record['STATUS'] !== 'E' ){
-                        //Insert discount record
-                        $aspRecon = new ASPRecon($db); 
+                    //Insert discount record
+                    $aspRecon = new ASPRecon($db); 
 
-                        $aspRecon->set_CREATE_DT( $now->toStringOracle() );
-                        $aspRecon->set_AS_CD( 'SYF' );
-                        $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
-                        $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
-                        $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-                        $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
-                        $aspRecon->set_STATUS( $record['STATUS'] );
-                        $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
-                        $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
-                        $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-                        $aspRecon->set_AMT( $record['DISCOUNT'] );
-                        $aspRecon->set_DES( 'ACQUISITION' );
-                        $aspRecon->set_EXCEPTIONS(''); 
+                    $aspRecon->set_CREATE_DT( $now->toStringOracle() );
+                    $aspRecon->set_AS_CD( 'SYF' );
+                    $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
+                    $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
+                    $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
+                    $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
+                    $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
+                    $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
+                    $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
+                    $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
+                    $aspRecon->set_AMT( $record['DISCOUNT'] );
+                    $aspRecon->set_DES( 'ACQUISITION' );
+                    $aspRecon->set_EXCEPTIONS($error); 
 
-                        $error = $aspRecon->insert( true, false );
-                        if( !$error ){
-                            $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
-                        }
+                    $error = $aspRecon->insert( true, false );
+                    if( !$error ){
+                        $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
                     }
                 }
                 else{
-                    return;
+                    return $record; 
                 }
             }
+
+            return $record;
         }
 
         function processASPRecon( $db, $audit, $mor ){
@@ -388,7 +389,7 @@
                 $logger->debug( "Synchrony Reconciliation: Error on query for error ASP_RECON records" );
                 exit();
             } 
-            $header = "STORE_CD,AS_CD,AMT,BNK_CRD_NUM,SYF_PROCESS_DT\n"; 
+            $header = "STORE_CD,AS_CD,AMT,BNK_CRD_NUM,PROCESS_DT\n"; 
             fwrite( $handle, $header );  
 
             $processDate = new IDate();
