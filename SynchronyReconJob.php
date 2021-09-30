@@ -71,6 +71,7 @@
 
                         //Read file 
                         if( ($handle = fopen( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, 'r' )) !== FALSE ){ 
+                            $postDate = substr( $file, 0, 8 );
                             while (($line = fgetcsv($handle, 1000, ",")) !== FALSE) {
                                 $aspRecon = new ASPRecon($db);
 
@@ -94,7 +95,8 @@
                                 }
                                 if( $so->next() ){
                                     $logger->debug( "Synchrony Reconciliation: SO Record found" );
-                                    $record = buildRecord( $so, $line );
+                                    $record = buildRecord( $so, $line, $postDate );
+                                    $record['POST_DT'] = $postDate;
 
                                     processIntoAsp( $db, $aspRecon, $record, '' );
                             
@@ -103,7 +105,7 @@
                                     $logger->debug( "Synchrony Reconciliation: SO Record not found" );
                                     $logger->debug( print_r($line, 1) );
 
-                                    $record = buildRecord( null, $line );
+                                    $record = buildRecord( null, $line, $postDate );
                                     processIntoAsp( $db, $aspRecon, $record, "SO RECORD NOT FOUND" );
                                 }
                             }
@@ -137,7 +139,7 @@
 
         }
 
-        function buildRecord( $so, $transaction ) {
+        function buildRecord( $so, $transaction, $postDate ) {
             $tmp = array();
 
             $tmp['ORIGIN_STORE'] = is_null($so) ? '00' : $so->get_SO_STORE_CD();
@@ -154,7 +156,7 @@
             $tmp['CREDIT_OR_DEBIT'] = 'D';
             
             //Use post date 
-            $postIDate = new IDate($transaction[8], 'Ymd'); 
+            $postIDate = new IDate($postDate, 'Ymd'); 
             $tmp['POST_DT'] = $postIDate->toStringOracle();
 
             return $tmp;
