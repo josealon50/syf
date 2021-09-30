@@ -278,7 +278,7 @@
                     $artrn->set_IVC_CD($aspRecon->get_IVC_CD());
                     $artrn->set_PMT_STORE('00');
                     $artrn->set_ORIGIN_CD('FCRIN');
-                    $artrn->set_DOC_SEQ_NUM('');
+                    $artrn->set_DOC_SEQ_NUM($mor->genDocNum($db, '00'));
 
                     $insertCheck = $artrn->insert( false, false );
 
