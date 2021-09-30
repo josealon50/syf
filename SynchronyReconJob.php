@@ -111,37 +111,12 @@
                             rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
 
                             $storesTotal = processASPRecon( $db, $audit, $mor );
-                            
                             $logger->debug( "Synchrony Reconciliation: Total by Stores " );
                             $logger->debug( print_r($storesTotal, 1) );
-                            $logger->debug( "Synchrony Reconciliation: Total " . number_format($total, 2, '.', '') );
-                            $logger->debug( $total );
+                            
+                            $errorFilename = buildErrorFile( $db );
+                            emailRecon( $storesTotal, $errorFilename );    
 
-                            if( count($storesTotal) > 0 ){
-                                //Send Email 
-                                $style = " style='border: 1px solid black;'";
-                                $body = "<table" .$style . "><tr" . $style ."><th" . $style . ">Store Code</th><th" . $style . ">Total Transactions Processed</th><th" . $style . ">Total Amount Processed</th></tr>";
-                                foreach( $storesTotal as $key => $store ){
-                                    $body .= "<tr" . $style . ">";
-                                    $body .= "<td" . $style . ">" . $key  . "</td>"; 
-                                    $body .= "<td" . $style . ">" . $store['total_records']   . "</td>"; 
-                                    $body .= "<td" . $style . ">" . $store['total']  . "</td>"; 
-                                    $body .= "</tr>"; 
-                                }
-                                $body .= "</table>";
-                    
-                                //Build csv errors array
-                                $handle = fopen( './out/syf_recon_error.csv', 'w+');
-                                $header = "STORE_CD,AS_CD,AMT,BNK_CRD_NUM,SYF_PROCESS_DT\n"; 
-                                fwrite( $handle, $header );  
-                                foreach( $errors as $error ){
-                                    fwrite( $handle, $error['ORIGIN_STORE'] . "," . 'SYF' . "," . $error['AMT'] . "," . $error['BNK_CRD_NUM'] . "," . $error['PROCESS_DT']->format( 'Y-m-d') . "\n" );
-                                }
-                                fclose($handle);
-                                if ( !emailRecon( $body, $date ) ){
-                                   $logger->debug("Synchrony Reconciliation: Email did not send" ); 
-                                }
-                            }
                         }
                     }
                 }
@@ -149,29 +124,7 @@
         }
         
 
-        function emailRecon( $body, $date ){
-            global $appconfig;
-
-            $mail = new PHPMailer;
-            $mail->isSMTP();
-            $mail->Host = $appconfig['email']['HOST'];
-            $mail->Port = $appconfig['email']['PORT'];
-            $mail->From     =  $appconfig['email']['FROM'];
-            $mail->FromName = $appconfig['email']['FROM_NAME'];
-            $mail->addAddress($appconfig['email']['TO']); //should go to finance@morfurniture.com
-            $mail->addReplyTo('');
-            $mail->WordWrap = 50;
-
-            $mail->isHTML(true);
-            $mail->Subject = 'Synchrony Reconciliation for date: ' . $date->toString();
-            
-            $mail->Body    = $body;
-
-            if(!$mail->send()) {
-                return -1;
-            } 
-            return true;
-
+        function email( $body, $date ){
 
         }
 
@@ -252,27 +205,29 @@
                     if( !$error ){
                         $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
                     }
+                    //Only insert record when there is no error on the main record
+                    if( $record['STATUS'] !== 'E' ){
+                        //Insert discount record
+                        $aspRecon = new ASPRecon($db); 
 
-                    //Insert discount record
-                    $aspRecon = new ASPRecon($db); 
+                        $aspRecon->set_CREATE_DT( $now->toStringOracle() );
+                        $aspRecon->set_AS_CD( 'SYF' );
+                        $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
+                        $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
+                        $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
+                        $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
+                        $aspRecon->set_STATUS( $record['STATUS'] );
+                        $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
+                        $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
+                        $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
+                        $aspRecon->set_AMT( $record['DISCOUNT'] );
+                        $aspRecon->set_DES( 'ACQUISITION' );
+                        $aspRecon->set_EXCEPTIONS(''); 
 
-                    $aspRecon->set_CREATE_DT( $now->toStringOracle() );
-                    $aspRecon->set_AS_CD( 'SYF' );
-                    $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
-                    $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
-                    $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-                    $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
-                    $aspRecon->set_STATUS( $record['STATUS'] );
-                    $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
-                    $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
-                    $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-                    $aspRecon->set_AMT( $record['DISCOUNT'] );
-                    $aspRecon->set_DES( 'ACQUISITION' );
-                    $aspRecon->set_EXCEPTIONS(''); 
-
-                    $error = $aspRecon->insert( true, false );
-                    if( !$error ){
-                        $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
+                        $error = $aspRecon->insert( true, false );
+                        if( !$error ){
+                            $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
+                        }
                     }
                 }
                 else{
@@ -364,6 +319,85 @@
 
             return $storesTotal;
 
+
+        }
+        function buildStoresTotalHTML( $storesTotal ){
+            global $logger, $appconfig;
+
+            $body = '';
+
+            $style = " style='border: 1px solid black;'";
+            $body = "<table" .$style . "><tr" . $style ."><th" . $style . ">Store Code</th><th" . $style . ">Total Transactions Processed</th><th" . $style . ">Total Amount Processed</th></tr>";
+            foreach( $storesTotal as $key => $store ){
+                $body .= "<tr" . $style . ">";
+                $body .= "<td" . $style . ">" . $key  . "</td>"; 
+                $body .= "<td" . $style . ">" . $store['total_records']   . "</td>"; 
+                $body .= "<td" . $style . ">" . $store['total']  . "</td>"; 
+                $body .= "</tr>"; 
+            }
+            $body .= "</table>";
+
+            return $body;
+
+        }
+        function emailRecon( $storesTotal, $errorFilename ){ 
+            global $logger, $appconfig;
+
+            $mail = new PHPMailer;
+            $date = new IDate();
+            $body = buildStoresTotalHTML( $storesTotal );
+
+            $logger->debug( "Synchrony Reconciliation: Stores Total HTML Table " );
+            $logger->debug( "Synchrony Reconciliation: " . $body );
+
+            $mail->isSMTP();
+            $mail->Host = $appconfig['email']['HOST'];
+            $mail->Port = $appconfig['email']['PORT'];
+            $mail->From     =  $appconfig['email']['FROM'];
+            $mail->FromName = $appconfig['email']['FROM_NAME'];
+            $mail->addAddress($appconfig['email']['TO']); //should go to finance@morfurniture.com
+            $mail->addReplyTo('');
+            $mail->WordWrap = 50;
+            $mail->addAttachment($appconfig['synchrony']['recon']['RECON_OUT_FOLDER'] . $errorFilename );
+
+            $mail->isHTML(true);
+            $mail->Subject = 'Synchrony Reconciliation for date: ' . $date->toString();
+            
+            $mail->Body    = $body;
+
+            if(!$mail->send()) {
+               $logger->debug("Synchrony Reconciliation: Email did not send" ); 
+               return false;
+            } 
+            return true;
+        }
+
+        function buildErrorFile( $db ){
+            global $logger, $appconfig;
+            
+            $now = new IDate(); 
+            $errorsFilename = 'syf_errors_recon' . date('Ymd') . '.csv';
+            $handle = fopen( $appconfig['recon']['RECON_OUT_FOLDER'] . $errorsFilename, 'w+' );
+                
+            $aspRecon = new ASPRecon($db);
+            $where = "WHERE AS_CD = 'SYF' AND STATUS = 'E' AND CREATE_DT BETWEEN TO_DATE( '" . $now->toStringOracle() . "', 'YYYY-MON-DD') AND TO_DATE('" . $now->toStringOracle() . "', 'YYYY-MON-DD')";
+            $result = $aspRecon->query( $where );
+            if( $result < 0 ){
+                $logger->debug( "Synchrony Reconciliation: Error on query for error ASP_RECON records" );
+                exit();
+            } 
+            $header = "STORE_CD,AS_CD,AMT,BNK_CRD_NUM,SYF_PROCESS_DT\n"; 
+            fwrite( $handle, $header );  
+
+            $processDate = new IDate();
+            while( $aspRecon->next() ){
+                $processDate->setDate( $aspRecon->get_PROCESS_DT() );
+                fwrite( $handle, $aspRecon->get_AS_STORE_CD() . "," . 'SYF' . "," . $aspRecon->get_AMT() . "," . $aspRecon->get_BNK_CRD_NUM() . "," . $processDate->toString() . "\n" );
+            }
+
+            fclose($handle);
+
+            return $errorsFilename;
 
         }
 ?>
