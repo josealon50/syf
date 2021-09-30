@@ -123,11 +123,6 @@
                 }
             }
         }
-        
-
-        function email( $body, $date ){
-
-        }
 
         function getDatesFromRange( $from, $to ){
             global $appconfig;
@@ -156,7 +151,7 @@
             
             //Use post date 
             $postIDate = new IDate(); 
-            $postIDate->setDate( $postDate, 'Ymd' )
+            $postIDate->setDate( $postDate, 'Ymd' );
             $tmp['POST_DT'] = $postIDate->toStringOracle();
 
             return $tmp;
