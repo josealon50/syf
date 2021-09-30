@@ -201,8 +201,8 @@
             if ( !$processed  ){
                 //Check if the there is any staged records
                 if ( !$aspRecon->isRecordStaged($record) ){;
-                    $error = $aspRecon->insert( true, false );
-                    if( !$error ){
+                    $errors = $aspRecon->insert( true, false );
+                    if( !$errors ){
                         $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
                     }
                     //Insert discount record
@@ -222,8 +222,8 @@
                     $aspRecon->set_DES( 'ACQUISITION' );
                     $aspRecon->set_EXCEPTIONS($error); 
 
-                    $error = $aspRecon->insert( true, false );
-                    if( !$error ){
+                    $errors = $aspRecon->insert( true, false );
+                    if( !$errors ){
                         $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
                     }
                 }
