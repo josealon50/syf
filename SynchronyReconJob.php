@@ -109,7 +109,7 @@
                                 }
                             }
                             //Archive file 
-                            rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Y-m-d h:i:sa") );
+                            rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Ymd") );
 
                             $storesTotal = processASPRecon( $db, $audit, $mor );
                             $logger->debug( "Synchrony Reconciliation: Total by Stores " );
@@ -199,7 +199,7 @@
             $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
             $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
             $aspRecon->set_AMT( $record['TOTAL_AMT'] );
-            $aspRecon->set_DES( $record['STATUS'] === 'SALE' ? 'PURCHASE' : 'CREDIT' );
+            $aspRecon->set_DES( $record['DES'] === 'SALE' ? 'PURCHASE' : 'CREDIT' );
             $aspRecon->set_EXCEPTIONS($error); 
 
             if ( !$processed  ){
@@ -232,11 +232,11 @@
                     }
                 }
                 else{
-                    return $record; 
+                    return;  
                 }
             }
 
-            return $record;
+            return; 
         }
 
         function processASPRecon( $db, $audit, $mor ){
