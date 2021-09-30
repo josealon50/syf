@@ -380,7 +380,7 @@
             $handle = fopen( $appconfig['recon']['RECON_OUT_FOLDER'] . $errorsFilename, 'w+' );
                 
             $aspRecon = new ASPRecon($db);
-            $where = "WHERE AS_CD = 'SYF' AND STATUS = 'E' AND CREATE_DT BETWEEN TO_DATE( '" . $now->toStringOracle() . "', 'YYYY-MON-DD') AND TO_DATE('" . $now->toStringOracle() . "', 'YYYY-MON-DD')";
+            $where = "WHERE AS_CD = 'SYF' AND STATUS = 'E' AND TRUNC(TO_DATE(CREATE_DT, 'YYYY-MON-DD')) BETWEEN TO_DATE( '" . $now->toStringOracle() . "', 'YYYY-MON-DD') AND TO_DATE('" . $now->toStringOracle() . "', 'YYYY-MON-DD')";
             $result = $aspRecon->query( $where );
             if( $result < 0 ){
                 $logger->debug( "Synchrony Reconciliation: Error on query for error ASP_RECON records" );
