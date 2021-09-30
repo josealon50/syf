@@ -355,10 +355,10 @@
             $mail->Port = $appconfig['email']['PORT'];
             $mail->From     =  $appconfig['email']['FROM'];
             $mail->FromName = $appconfig['email']['FROM_NAME'];
-            $mail->addAddress($appconfig['email']['TO']); //should go to finance@morfurniture.com
+            $mail->addAddress($appconfig['recon']['email']['to']); //should go to finance@morfurniture.com
             $mail->addReplyTo('');
             $mail->WordWrap = 50;
-            $mail->addAttachment($appconfig['synchrony']['recon']['RECON_OUT_FOLDER'] . $errorFilename );
+            $mail->addAttachment($appconfig['recon']['RECON_OUT_FOLDER'] . $errorFilename );
 
             $mail->isHTML(true);
             $mail->Subject = 'Synchrony Reconciliation for date: ' . $date->toString();
