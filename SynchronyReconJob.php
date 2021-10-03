@@ -109,13 +109,13 @@
                                 }
                             }
                             //Archive file 
-                            rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Ymd") );
+                            //rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Ymd") );
 
                             $storesTotal = processASPRecon( $db, $audit, $mor );
                             $logger->debug( "Synchrony Reconciliation: Total by Stores " );
                             $logger->debug( print_r($storesTotal, 1) );
-                            
-                            $errorFilename = buildErrorFile( $db );
+                             
+                            $errorFilename = processErrors( $db );
                             emailRecon( $storesTotal, $errorFilename );    
 
                         }
@@ -372,7 +372,7 @@
             return true;
         }
 
-        function buildErrorFile( $db ){
+        function processErrors( $db ){
             global $logger, $appconfig;
             
             $now = new IDate(); 
@@ -380,19 +380,21 @@
             $handle = fopen( $appconfig['recon']['RECON_OUT_FOLDER'] . $errorsFilename, 'w+' );
                 
             $aspRecon = new ASPRecon($db);
-            $where = "WHERE AS_CD = 'SYF' AND STATUS = 'E' AND TRUNC(TO_DATE(CREATE_DT, 'YYYY-MON-DD')) BETWEEN TO_DATE( '" . $now->toStringOracle() . "', 'YYYY-MON-DD') AND TO_DATE('" . $now->toStringOracle() . "', 'YYYY-MON-DD')";
+            $where = "WHERE AS_CD = 'SYF' AND STATUS = 'E' AND TRUNC(CREATE_DT) = '" . $now->toStringOracle() . "' ";
+
             $result = $aspRecon->query( $where );
+            
             if( $result < 0 ){
                 $logger->debug( "Synchrony Reconciliation: Error on query for error ASP_RECON records" );
                 exit();
             } 
-            $header = "STORE_CD,AS_CD,AMT,BNK_CRD_NUM,PROCESS_DT\n"; 
+            $header = "STORE_CD,AS_CD,AMT,BNK_CRD_NUM,DEL_DOC_NUM,DES,EXPCEPTIONS,PROCESS_DT\n"; 
             fwrite( $handle, $header );  
 
             $processDate = new IDate();
             while( $aspRecon->next() ){
                 $processDate->setDate( $aspRecon->get_PROCESS_DT() );
-                fwrite( $handle, $aspRecon->get_AS_STORE_CD() . "," . 'SYF' . "," . $aspRecon->get_AMT() . "," . $aspRecon->get_BNK_CRD_NUM() . "," . $processDate->toString() . "\n" );
+                fwrite( $handle, $aspRecon->get_AS_STORE_CD() . "," . 'SYF' . "," . $aspRecon->get_AMT() . "," . $aspRecon->get_BNK_CRD_NUM() . "," . $aspRecon->get_IVC_CD() . "," . $aspRecon->get_DES() . "," . $aspRecon->get_EXCEPTIONS() . "," .  $processDate->toString() . "\n" );
             }
 
             fclose($handle);
