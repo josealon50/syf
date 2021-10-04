@@ -146,6 +146,7 @@
             $tmp['TOTAL_AMT'] = number_format( $tmp['AMT'] - $tmp['DISCOUNT'], 2, '.', '' );
             $tmp['AS_CD'] = 'SYF';
             $tmp['PROCESS_DT'] = $transaction[3];
+            $tmp['FORMAT_AMT'] = formatAmt( $transaction[8] );
             $tmp['TYPE'] = 'S';
             $tmp['CREDIT_OR_DEBIT'] = 'D';
             
@@ -237,7 +238,7 @@
 
         function processASPRecon( $db, $audit, $mor ){
             global $logger;
-            
+
             //After prepping data insert into AR_TRN
             $aspRecon = new ASPRecon($db);
             $now = new IDate();
@@ -299,11 +300,11 @@
 
                             //return stores total
                             if ( !isset($storesTotal[$aspRecon->get_ORIGIN_STORE()]) ){
-                                $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total'] = $aspRecon->get_AMT();
+                                $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total'] = formatAmt($aspRecon->get_AMT());
                                 $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total_records'] = 1;
                             }
                             else{
-                                $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total'] = floatval( $storesTotal[$aspRecon->get_ORIGIN_STORE()] ) + floatval( $aspRecon->get_AMT() );
+                                $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total'] += floatval( formatAmt($aspRecon->get_AMT()) );
                                 $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total_records'] = $storesTotal[$aspRecon->get_ORIGIN_STORE()]['total_records'] + 1;
                             }
                         }
@@ -401,5 +402,15 @@
 
             return $errorsFilename;
 
+        }
+
+        function formatAmt( $amt ){
+            global $logger;
+
+            if( strpos($amt, ',' ) > 0 ){
+                return str_replace( ',', '', $amt );
+            }
+
+            return $amt;
         }
 ?>
