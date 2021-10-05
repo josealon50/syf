@@ -82,6 +82,7 @@
                                 if( $line[1] === "MERCHANT NBR" ){
                                     continue;
                                 }
+
                                 $line[8] = str_replace( ',', '', $line[8] );
 
                                 $so = new SalesOrder( $db );
@@ -109,7 +110,7 @@
                                 }
                             }
                             //Archive file 
-                            //rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Ymd") );
+                            rename( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, "./archive/" . $file . '.' . date("Ymd") );
 
                             $storesTotal = processASPRecon( $db, $audit, $mor );
                             $logger->debug( "Synchrony Reconciliation: Total by Stores " );
