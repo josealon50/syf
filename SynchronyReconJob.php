@@ -143,7 +143,7 @@
             $tmp['DEL_DOC_NUM'] = is_null($so) ? '' : $so->get_DEL_DOC_NUM();
             $tmp['AMT'] = $transaction[8];
             $tmp['DES'] = $transaction[2];
-            $tmp['DISCOUNT'] = $transaction[9] == '' ? '0' : number_format($transaction[9] * -1, 2, '.', '' );
+            $tmp['DISCOUNT'] = $transaction[9] == '' ? '0' : number_format(removeMinus(formatAmt($transaction[9]) * -1), 2, '.', '' );
             $tmp['TOTAL_AMT'] = number_format( $tmp['AMT'] - $tmp['DISCOUNT'], 2, '.', '' );
             $tmp['AS_CD'] = 'SYF';
             $tmp['PROCESS_DT'] = $transaction[3];
@@ -207,26 +207,29 @@
                     if( !$errors ){
                         $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON" );
                     }
-                    //Insert discount record
-                    $aspRecon = new ASPRecon($db); 
+                    //Only insert record for discount if its not equalo to 0.00 or 0 
+                    if( $record['DISCOUNT'] !== '0.00' ){
+                        //Insert discount record
+                        $aspRecon = new ASPRecon($db); 
 
-                    $aspRecon->set_CREATE_DT( $now->toStringOracle() );
-                    $aspRecon->set_AS_CD( 'SYF' );
-                    $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
-                    $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
-                    $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
-                    $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
-                    $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
-                    $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
-                    $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
-                    $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
-                    $aspRecon->set_AMT( $record['DISCOUNT'] );
-                    $aspRecon->set_DES( 'ACQUISITION' );
-                    $aspRecon->set_EXCEPTIONS($error); 
+                        $aspRecon->set_CREATE_DT( $now->toStringOracle() );
+                        $aspRecon->set_AS_CD( 'SYF' );
+                        $aspRecon->set_AS_STORE_CD( $record['ORIGIN_STORE'] );
+                        $aspRecon->set_ORIGIN_STORE( $record['ORIGIN_STORE'] );
+                        $aspRecon->set_CREDIT_OR_DEBIT( $record['CREDIT_OR_DEBIT'] );
+                        $aspRecon->set_PROCESS_DT( $record['POST_DT'] );
+                        $aspRecon->set_STATUS( $error == '' ? $record['STATUS'] : 'E' );
+                        $aspRecon->set_RECORD_TYPE( $record['TYPE'] );
+                        $aspRecon->set_BNK_CRD_NUM( $record['BNK_CRD_NUM'] );
+                        $aspRecon->set_IVC_CD( $record['DEL_DOC_NUM'] );
+                        $aspRecon->set_AMT( $record['DISCOUNT'] );
+                        $aspRecon->set_DES( 'ACQUISITION' );
+                        $aspRecon->set_EXCEPTIONS($error); 
 
-                    $errors = $aspRecon->insert( true, false );
-                    if( !$errors ){
-                        $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
+                        $errors = $aspRecon->insert( true, false );
+                        if( !$errors ){
+                            $logger->debug( "Synchrony Reconciliation: Error on INSERT ASP_RECON #2" );
+                        }
                     }
                 }
                 else{
@@ -411,7 +414,17 @@
             if( strpos($amt, ',' ) > 0 ){
                 return str_replace( ',', '', $amt );
             }
+            return $amt;
+        }
+
+        function removeMinus( $amt ){
+            global $logger;
+
+            if( strpos( $amt, '-' ) == 0 ){
+                return str_replace( '-', '', $amt );
+            }
 
             return $amt;
+
         }
 ?>

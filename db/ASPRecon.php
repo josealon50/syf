@@ -37,7 +37,7 @@ class ASPRecon extends IDBTable {
     public function isRecordProcessed( $record ){
         global $appconfig;
 
-        $where = "WHERE AS_CD = '" . $record['AS_CD'] . "' AND AMT = '" . $record['AMT'] . "' AND AS_STORE_CD = '" . $record['ORIGIN_STORE'] . "' AND STATUS IN ( 'P' ) " ;
+        $where = "WHERE AS_CD = '" . $record['AS_CD'] . "' AND AMT = '" . $record['TOTAL_AMT'] . "' AND AS_STORE_CD = '" . $record['ORIGIN_STORE'] . "' AND STATUS IN ( 'P' ) " ;
         
         if( $record['DEL_DOC_NUM'] !== '' ){ 
             $where .= " AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' ";
@@ -54,7 +54,7 @@ class ASPRecon extends IDBTable {
     public function isRecordStaged( $record ){
         global $appconfig;
 
-        $where = "WHERE AS_CD = '" . $record['AS_CD'] . "' AND AMT = '" . $record['AMT'] . "' AND AS_STORE_CD = '" . $record['ORIGIN_STORE'] . "' AND STATUS IN ( 'H', 'E' ) " ;
+        $where = "WHERE AS_CD = '" . $record['AS_CD'] . "' AND AMT = '" . $record['TOTAL_AMT'] . "' AND AS_STORE_CD = '" . $record['ORIGIN_STORE'] . "' AND STATUS IN ( 'H', 'E' ) " ;
         
         if( $record['DEL_DOC_NUM'] !== '' ){ 
             $where .= " AND IVC_CD = '" . $record['DEL_DOC_NUM'] . "' ";
