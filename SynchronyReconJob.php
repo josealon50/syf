@@ -22,7 +22,11 @@
         * 
         ****************************************************************************************
         ****************************************************************************************
-        ***************************************************************************************/
+        ***************************************************************************************
+        * Programmer        Date        Log
+        * Jose Leon         09/??/2021  Created
+        * Frank Ilagan      10/06/2021  Add logic to prepend 0 to AUTH_CD so AUTH_CD is 6 characters
+        * */ 
 
         include_once( '../config.php');
         include_once( './autoload.php' );
@@ -73,6 +77,8 @@
                         if( ($handle = fopen( $appconfig['recon']['RECON_FOLDER'] . '/' . $file, 'r' )) !== FALSE ){ 
                             $postDate = substr( $file, 0, 8 );
                             while (($line = fgetcsv($handle, 1000, ",")) !== FALSE) {
+
+                                $authCd = sprintf("%06s", $line[7]);
                                 $aspRecon = new ASPRecon($db);
 
                                 //If no auth code process next record
@@ -87,7 +93,7 @@
 
                                 $so = new SalesOrder( $db );
                                 //Find SO record with approval code and amount 
-                                $where  = "WHERE ORIG_FI_AMT = '" . $line[8] . "' AND APPROVAL_CD = '" . $line[7] . "' ";
+                                $where  = "WHERE ORIG_FI_AMT = '" . $line[8] . "' AND APPROVAL_CD = '" . $authCd . "' ";
 
                                 $result = $so->query( $where );
                                 if ( $result < 0 ) {
