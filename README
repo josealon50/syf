@@ -8,4 +8,17 @@ HOW TO USE MODES
     - php SynchronyReconJob.php 0 RUN NORMAL
     - php SynchronyReconJob.php 1 Audit inserts into AR_TRN. Mode will insert into ASP_RECON.
     - php SynchronyReconJob.php 2 Process all staged records on ASP_RECON with status of H
+    
+Folder Structure:
+    - db 
+       * Database models classes
+    - libs
+       * Library classes
+    - reconciliation 
+       * Folder that store all recon files to be processed
+    - out 
+       * Folder holds all error and files that are produces by the process
+    - logs
+       * Folder holds all logs 
+     
 
